@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f14" />
-  <meta name="description" content="لوحة أسعار حية لبوت Ajcoin" />
-  <title>لوحة الأسعار</title>
+  <meta name="description" content="لوحة أسعار ومحفظة Ajcoin" />
+  <title>المحفظة والتداول</title>
+  <!-- ajcoin-miniapp v2-wallet -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
@@ -19,6 +20,7 @@
       --down: #ef5350;
       --accent: #f5c542;
       --hint: #8b98a8;
+      --btn: #1e6eff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -27,18 +29,24 @@
       font-family: "IBM Plex Sans Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
       min-height: 100%;
     }
-    body { padding: 16px 14px 28px; }
-    header {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 12px; margin-bottom: 16px;
-    }
-    h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    body { padding: 14px 14px 28px; }
+    header { margin-bottom: 12px; }
+    h1 { font-size: 1.2rem; font-weight: 700; }
     .sub { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+    .tabs {
+      display: flex; gap: 6px; background: var(--card);
+      border: 1px solid var(--line); border-radius: 14px; padding: 4px; margin-bottom: 14px;
+    }
+    .tabs button {
+      flex: 1; border: 0; background: transparent; color: var(--muted);
+      font: inherit; font-weight: 700; font-size: 0.9rem;
+      padding: 9px 6px; border-radius: 10px; cursor: pointer;
+    }
+    .tabs button.on { background: var(--card-2); color: var(--text); }
     .live {
-      display: flex; align-items: center; gap: 6px;
+      display: inline-flex; align-items: center; gap: 6px;
       background: var(--card); border: 1px solid var(--line);
       border-radius: 999px; padding: 6px 10px; font-size: 0.75rem; color: var(--muted);
-      white-space: nowrap;
     }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 8px var(--up); }
     .dot.err { background: var(--down); box-shadow: 0 0 8px var(--down); }
@@ -46,10 +54,7 @@
     @media (min-width: 560px) { .grid { grid-template-columns: 1fr 1fr; } }
     .card {
       background: linear-gradient(180deg, var(--card-2), var(--card));
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 14px 14px 10px;
-      min-height: 112px;
+      border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 10px;
     }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .sym { font-weight: 700; font-size: 1rem; }
@@ -60,25 +65,128 @@
     }
     .chg.up { color: var(--up); background: rgba(38,194,129,.12); }
     .chg.down { color: var(--down); background: rgba(239,83,80,.12); }
-    .price {
-      font-size: 1.28rem; font-weight: 700; margin-top: 8px;
-      font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
-    }
+    .price { font-size: 1.28rem; font-weight: 700; margin-top: 8px; font-variant-numeric: tabular-nums; }
     canvas { width: 100%; height: 44px; margin-top: 8px; display: block; }
-    .hint { color: var(--hint); font-size: 0.75rem; text-align: center; margin-top: 18px; line-height: 1.6; }
+    .hint { color: var(--hint); font-size: 0.75rem; text-align: center; margin-top: 16px; line-height: 1.6; }
     .errbox { color: var(--down); text-align: center; padding: 24px 8px; }
+    .banner {
+      background: rgba(245,197,66,.1); border: 1px solid rgba(245,197,66,.35);
+      color: var(--text); border-radius: 12px; padding: 10px 12px;
+      font-size: 0.82rem; line-height: 1.6; margin-bottom: 12px;
+    }
+    .note {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; padding: 10px 12px; font-size: 0.8rem;
+      line-height: 1.65; color: var(--muted); margin-top: 12px;
+    }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin: 10px 0 6px; }
+    select, input[type="number"] {
+      width: 100%; background: var(--bg); color: var(--text);
+      border: 1px solid var(--line); border-radius: 12px;
+      padding: 10px 12px; font: inherit; font-size: 1rem;
+    }
+    .seg { display: flex; gap: 6px; }
+    .seg button {
+      flex: 1; border: 1px solid var(--line); background: var(--card);
+      color: var(--text); font: inherit; font-weight: 700;
+      padding: 10px; border-radius: 12px; cursor: pointer;
+    }
+    .seg button.on.buy { background: rgba(38,194,129,.18); border-color: var(--up); color: var(--up); }
+    .seg button.on.sell { background: rgba(239,83,80,.18); border-color: var(--down); color: var(--down); }
+    .seg button.on { background: var(--card-2); }
+    .primary {
+      width: 100%; margin-top: 14px; border: 0; border-radius: 14px;
+      background: var(--btn); color: #fff; font: inherit; font-weight: 700;
+      font-size: 1rem; padding: 12px; cursor: pointer;
+    }
+    .primary:disabled { opacity: .45; cursor: not-allowed; }
+    .primary.sellbtn { background: #c62828; }
+    .estimate {
+      margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+      background: var(--card); border: 1px solid var(--line);
+      font-size: 0.88rem; line-height: 1.7;
+    }
+    .estimate b { font-variant-numeric: tabular-nums; }
+    .hidden { display: none !important; }
+    .headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   </style>
 </head>
 <body>
-  <header>
+  <header class="headrow">
     <div>
-      <h1>لوحة الأسعار</h1>
-      <div class="sub" id="subtitle">أسعار حية · تتحدث تلقائيًا</div>
+      <h1>المحفظة والتداول</h1>
+      <div class="sub" id="subtitle">أسعار حية · تداول بعد تأكيدك في الدردشة</div>
     </div>
     <div class="live"><span class="dot" id="dot"></span><span id="status">جاري التحميل</span></div>
   </header>
-  <div class="grid" id="grid"></div>
-  <p class="hint">الأرقام للعرض فقط وليست نصيحة استثمارية. المصدر: <span id="src">—</span> · آخر تحديث: <span id="when">—</span></p>
+
+  <nav class="tabs" id="tabs">
+    <button type="button" data-tab="prices" class="on">الأسعار</button>
+    <button type="button" data-tab="trade">تداول</button>
+    <button type="button" data-tab="wallet">المحفظة</button>
+  </nav>
+
+  <section id="tab-prices">
+    <div class="grid" id="grid"></div>
+    <p class="hint">الأرقام للعرض فقط وليست نصيحة استثمارية. المصدر: <span id="src">—</span> · آخر تحديث: <span id="when">—</span></p>
+  </section>
+
+  <section id="tab-trade" class="hidden">
+    <div class="banner hidden" id="trade-hint">افتح هذه الصفحة من زر <b>📱 المحفظة والتداول</b> أسفل لوحة الكتابة حتى يصل طلبك إلى البوت.</div>
+    <div class="card">
+      <label for="coin">العملة</label>
+      <select id="coin"></select>
+      <label>نوع الصفقة</label>
+      <div class="seg" id="side-seg">
+        <button type="button" class="buy on" data-side="buy">شراء</button>
+        <button type="button" class="sell" data-side="sell">بيع</button>
+      </div>
+      <div id="buy-box">
+        <label for="usdt-amt">المبلغ بالـ USDT</label>
+        <input id="usdt-amt" type="number" min="0.1" step="0.1" value="5" inputmode="decimal" />
+      </div>
+      <div id="sell-box" class="hidden">
+        <label>طريقة البيع</label>
+        <div class="seg" id="sell-mode">
+          <button type="button" class="on" data-mode="qty">كمية العملة</button>
+          <button type="button" data-mode="pct">نسبة من الرصيد</button>
+        </div>
+        <div id="sell-qty-box">
+          <label for="coin-amt">الكمية</label>
+          <input id="coin-amt" type="number" min="0" step="any" inputmode="decimal" placeholder="0.0" />
+        </div>
+        <div id="sell-pct-box" class="hidden">
+          <label>النسبة</label>
+          <div class="seg" id="pct-seg">
+            <button type="button" data-pct="25">25%</button>
+            <button type="button" class="on" data-pct="50">50%</button>
+            <button type="button" data-pct="100">100%</button>
+          </div>
+        </div>
+      </div>
+      <div class="estimate" id="est">جاري جلب السعر…</div>
+      <button type="button" class="primary" id="trade-btn">إرسال طلب الشراء للتأكيد</button>
+      <p class="note">الحد الأقصى 5 USDT للصفقة و20 USDT في اليوم. لن يُنفَّذ أي أمر حتى تضغط ✅ تنفيذ في الدردشة خلال 60 ثانية.</p>
+    </div>
+  </section>
+
+  <section id="tab-wallet" class="hidden">
+    <div class="banner hidden" id="wallet-hint">افتح هذه الصفحة من زر <b>📱 المحفظة والتداول</b> أسفل لوحة الكتابة لعرض الرصيد أو عنوان الإيداع.</div>
+    <div class="card">
+      <p style="font-weight:700;margin-bottom:10px;">الرصيد</p>
+      <button type="button" class="primary" id="bal-btn">عرض رصيدي</button>
+    </div>
+    <div class="card" style="margin-top:10px;">
+      <p style="font-weight:700;">عنوان الإيداع</p>
+      <label for="dep-coin">العملة</label>
+      <select id="dep-coin"></select>
+      <label for="dep-chain">الشبكة</label>
+      <select id="dep-chain"></select>
+      <button type="button" class="primary" id="dep-btn">عنوان الإيداع</button>
+      <p class="note">أرسل فقط نفس العملة وعلى نفس الشبكة التي يطلبها البوت. أي خطأ في الشبكة قد يضيّع التحويل.</p>
+    </div>
+    <p class="note">⚠️ السحب غير متاح من البوت أو هذه الصفحة. إذا أردت سحب رصيدك فاستخدم تطبيق Gate.io مباشرة.</p>
+  </section>
 
   <script>
     const COINS = [
@@ -87,17 +195,49 @@
       { symbol: "SOL", pair: "SOL_USDT", bn: "SOLUSDT", cg: "solana" },
       { symbol: "BNB", pair: "BNB_USDT", bn: "BNBUSDT", cg: "binancecoin" },
       { symbol: "XRP", pair: "XRP_USDT", bn: "XRPUSDT", cg: "ripple" },
-      { symbol: "DOGE", pair: "DOGE_USDT", bn: "DOGEUSDT", cg: "dogecoin" },
-      { symbol: "ADA", pair: "ADA_USDT", bn: "ADAUSDT", cg: "cardano" },
       { symbol: "TON", pair: "TON_USDT", bn: "TONUSDT", cg: "the-open-network" },
-      { symbol: "AVAX", pair: "AVAX_USDT", bn: "AVAXUSDT", cg: "avalanche-2" },
-      { symbol: "LINK", pair: "LINK_USDT", bn: "LINKUSDT", cg: "chainlink" }
+      { symbol: "DOGE", pair: "DOGE_USDT", bn: "DOGEUSDT", cg: "dogecoin" }
     ];
     const PAIR = Object.fromEntries(COINS.map(c => [c.pair, c]));
     const BY_CG = Object.fromEntries(COINS.map(c => [c.cg, c]));
     const BY_BN = Object.fromEntries(COINS.map(c => [c.bn, c]));
+    const CHAINS = {
+      USDT: [
+        { id: "TRX", label: "TRC20 (Tron)" },
+        { id: "ETH", label: "ERC20 (Ethereum)" },
+        { id: "BSC", label: "BEP20 (BSC)" },
+        { id: "SOL", label: "Solana" },
+        { id: "TON", label: "TON" },
+        { id: "MATIC", label: "Polygon" },
+        { id: "ARBEVM", label: "Arbitrum" },
+        { id: "OPETH", label: "Optimism" }
+      ],
+      BTC: [
+        { id: "BTC", label: "Bitcoin" },
+        { id: "BSC", label: "BEP20 (BSC)" }
+      ],
+      ETH: [
+        { id: "ETH", label: "ERC20 (Ethereum)" },
+        { id: "ARBEVM", label: "Arbitrum" },
+        { id: "OPETH", label: "Optimism" },
+        { id: "BSC", label: "BEP20 (BSC)" }
+      ],
+      SOL: [{ id: "SOL", label: "Solana" }],
+      BNB: [
+        { id: "BSC", label: "BEP20 (BSC)" },
+        { id: "OPBNB", label: "opBNB" }
+      ],
+      XRP: [{ id: "XRP", label: "XRP Ledger" }],
+      TON: [{ id: "TON", label: "TON" }],
+      DOGE: [{ id: "DOGE", label: "Dogecoin" }]
+    };
+    const DEPOSIT_COINS = ["USDT", "BTC", "ETH", "SOL", "BNB", "XRP", "TON", "DOGE"];
 
+    const params = new URLSearchParams(location.search);
+    const walletMode = params.get("mode") === "wallet";
     const tg = window.Telegram && window.Telegram.WebApp;
+    const canSend = !!(walletMode && tg && typeof tg.sendData === "function");
+
     if (tg) {
       try {
         tg.ready();
@@ -113,8 +253,9 @@
         if (p.hint_color) {
           root.style.setProperty("--muted", p.hint_color);
           root.style.setProperty("--hint", p.hint_color);
+          root.style.setProperty("--line", p.hint_color + "44");
         }
-        if (p.hint_color) root.style.setProperty("--line", p.hint_color + "44");
+        if (p.button_color) root.style.setProperty("--btn", p.button_color);
         const bg = p.bg_color || "#0b0f14";
         try { tg.setHeaderColor(bg); } catch (e) {}
         try { tg.setBackgroundColor(bg); } catch (e) {}
@@ -127,9 +268,11 @@
     const dot = document.getElementById("dot");
     const when = document.getElementById("when");
     const srcEl = document.getElementById("src");
-    const subtitle = document.getElementById("subtitle");
     const sparks = {};
-    let lastSource = "";
+    let lastTickers = [];
+    let side = "buy";
+    let sellMode = "qty";
+    let sellPct = 50;
 
     function fmt(n) {
       n = Number(n);
@@ -138,6 +281,144 @@
       if (n >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
       return n.toPrecision(4);
     }
+
+    function showTab(name) {
+      ["prices", "trade", "wallet"].forEach(t => {
+        document.getElementById("tab-" + t).classList.toggle("hidden", t !== name);
+        document.querySelector('.tabs [data-tab="' + t + '"]').classList.toggle("on", t === name);
+      });
+    }
+    document.getElementById("tabs").addEventListener("click", ev => {
+      const btn = ev.target.closest("[data-tab]");
+      if (btn) showTab(btn.dataset.tab);
+    });
+    showTab(walletMode ? "trade" : "prices");
+
+    if (!canSend) {
+      document.getElementById("trade-hint").classList.remove("hidden");
+      document.getElementById("wallet-hint").classList.remove("hidden");
+    }
+
+    const coinSel = document.getElementById("coin");
+    COINS.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c.pair; o.textContent = c.symbol + " / USDT";
+      coinSel.appendChild(o);
+    });
+    const depCoin = document.getElementById("dep-coin");
+    const depChain = document.getElementById("dep-chain");
+    DEPOSIT_COINS.forEach(sym => {
+      const o = document.createElement("option");
+      o.value = sym; o.textContent = sym;
+      depCoin.appendChild(o);
+    });
+    function fillChains() {
+      const list = CHAINS[depCoin.value] || [];
+      depChain.innerHTML = list.map(c => '<option value="' + c.id + '">' + c.label + "</option>").join("");
+    }
+    depCoin.addEventListener("change", fillChains);
+    fillChains();
+
+    document.getElementById("side-seg").addEventListener("click", ev => {
+      const btn = ev.target.closest("[data-side]");
+      if (!btn) return;
+      side = btn.dataset.side;
+      document.querySelectorAll("#side-seg button").forEach(b => b.classList.toggle("on", b === btn));
+      document.getElementById("buy-box").classList.toggle("hidden", side !== "buy");
+      document.getElementById("sell-box").classList.toggle("hidden", side !== "sell");
+      const tb = document.getElementById("trade-btn");
+      tb.textContent = side === "buy" ? "إرسال طلب الشراء للتأكيد" : "إرسال طلب البيع للتأكيد";
+      tb.classList.toggle("sellbtn", side === "sell");
+      updateEst();
+    });
+    document.getElementById("sell-mode").addEventListener("click", ev => {
+      const btn = ev.target.closest("[data-mode]");
+      if (!btn) return;
+      sellMode = btn.dataset.mode;
+      document.querySelectorAll("#sell-mode button").forEach(b => b.classList.toggle("on", b === btn));
+      document.getElementById("sell-qty-box").classList.toggle("hidden", sellMode !== "qty");
+      document.getElementById("sell-pct-box").classList.toggle("hidden", sellMode !== "pct");
+      updateEst();
+    });
+    document.getElementById("pct-seg").addEventListener("click", ev => {
+      const btn = ev.target.closest("[data-pct]");
+      if (!btn) return;
+      sellPct = Number(btn.dataset.pct);
+      document.querySelectorAll("#pct-seg button").forEach(b => b.classList.toggle("on", b === btn));
+      updateEst();
+    });
+    ["coin", "usdt-amt", "coin-amt"].forEach(id => {
+      document.getElementById(id).addEventListener("input", updateEst);
+      document.getElementById(id).addEventListener("change", updateEst);
+    });
+
+    function livePrice(pair) {
+      const t = lastTickers.find(x => x.pair === pair);
+      return t ? Number(t.last) : null;
+    }
+
+    function updateEst() {
+      const pair = coinSel.value;
+      const sym = (PAIR[pair] || {}).symbol || "";
+      const px = livePrice(pair);
+      const el = document.getElementById("est");
+      if (!px) { el.textContent = "جاري جلب السعر…"; return; }
+      let html = "السعر الحي: <b>" + fmt(px) + " USDT</b>";
+      if (side === "buy") {
+        const usdt = Number(document.getElementById("usdt-amt").value);
+        if (usdt > 0) html += "<br>التقدير: ستشتري نحو <b>" + fmt(usdt / px) + " " + sym + "</b>";
+        if (usdt > 5) html += "<br>⚠️ الحد الأقصى للصفقة 5 USDT؛ البوت سيرفض ما فوق ذلك.";
+      } else if (sellMode === "pct") {
+        html += "<br>سيبيع البوت <b>" + sellPct + "%</b> من رصيد " + sym + " المتاح (بعد التحقق من الحد الأدنى والحد اليومي).";
+      } else {
+        const qty = Number(document.getElementById("coin-amt").value);
+        if (qty > 0) html += "<br>التقدير: قيمة البيع نحو <b>" + fmt(qty * px) + " USDT</b>";
+        if (qty > 0 && qty * px > 5) html += "<br>⚠️ إذا تجاوزت القيمة 5 USDT سيرفض البوت الصفقة.";
+      }
+      el.innerHTML = html;
+    }
+
+    function sendAction(payload) {
+      if (!canSend) {
+        alert("افتح من زر المحفظة والتداول في لوحة الكتابة");
+        return false;
+      }
+      try {
+        tg.sendData(JSON.stringify(payload));
+        try { tg.close(); } catch (e) {}
+        return true;
+      } catch (e) {
+        alert("افتح من زر المحفظة والتداول في لوحة الكتابة");
+        return false;
+      }
+    }
+
+    document.getElementById("trade-btn").addEventListener("click", () => {
+      if (!canSend) { alert("افتح من زر المحفظة والتداول في لوحة الكتابة"); return; }
+      const pair = coinSel.value;
+      const payload = { action: "trade", side: side, pair: pair };
+      if (side === "buy") {
+        const usdt = Number(document.getElementById("usdt-amt").value);
+        if (!(usdt > 0)) { alert("أدخل مبلغًا صحيحًا بالـ USDT"); return; }
+        payload.usdt = usdt;
+      } else if (sellMode === "pct") {
+        payload.percent = sellPct;
+      } else {
+        const qty = Number(document.getElementById("coin-amt").value);
+        if (!(qty > 0)) { alert("أدخل كمية البيع"); return; }
+        payload.amount = qty;
+      }
+      sendAction(payload);
+    });
+    document.getElementById("bal-btn").addEventListener("click", () => {
+      sendAction({ action: "balance" });
+    });
+    document.getElementById("dep-btn").addEventListener("click", () => {
+      sendAction({ action: "deposit", currency: depCoin.value, chain: depChain.value });
+    });
+    document.getElementById("trade-btn").disabled = !canSend;
+    document.getElementById("bal-btn").disabled = !canSend;
+    document.getElementById("dep-btn").disabled = !canSend;
 
     function drawSpark(canvas, values, up) {
       if (!canvas || !values || values.length < 2) return;
@@ -156,8 +437,7 @@
         const y = h - 4 - ((v - min) / span) * (h - 8);
         i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
       });
-      const color = up ? getComputedStyle(document.documentElement).getPropertyValue("--up").trim() || "#26c281"
-                       : getComputedStyle(document.documentElement).getPropertyValue("--down").trim() || "#ef5350";
+      const color = up ? "#26c281" : "#ef5350";
       ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke();
       ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
       const grad = ctx.createLinearGradient(0, 0, 0, h);
@@ -173,9 +453,7 @@
         const r = await fetch(url, { signal: ctrl.signal });
         if (!r.ok) throw new Error("http " + r.status);
         return await r.json();
-      } finally {
-        clearTimeout(t);
-      }
+      } finally { clearTimeout(t); }
     }
 
     async function loadGateTickers() {
@@ -194,7 +472,6 @@
       out.sort((a, b) => COINS.findIndex(c => c.symbol === a.symbol) - COINS.findIndex(c => c.symbol === b.symbol));
       return out;
     }
-
     async function loadCgTickers() {
       const ids = COINS.map(c => c.cg).join(",");
       const data = await fetchJson("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=" + encodeURIComponent(ids) + "&price_change_percentage=24h&sparkline=true");
@@ -207,7 +484,6 @@
         return { symbol: c.symbol, pair: c.pair, last: Number(row.current_price), change: Number(row.price_change_percentage_24h || 0) };
       }).filter(Boolean);
     }
-
     async function loadBnTickers() {
       const symbols = encodeURIComponent(JSON.stringify(COINS.map(c => c.bn)));
       const data = await fetchJson("https://data-api.binance.vision/api/v3/ticker/24hr?symbols=" + symbols);
@@ -220,7 +496,6 @@
       if (!out.length) throw new Error("empty binance");
       return out;
     }
-
     async function loadTickers() {
       const chain = [
         { name: "Gate.io", fn: loadGateTickers },
@@ -236,12 +511,10 @@
       }
       throw lastErr || new Error("all sources failed");
     }
-
     async function loadSparks(pair) {
       if (sparks[pair] && sparks[pair].length > 2) {
         const closes = sparks[pair];
-        const canvas = document.getElementById("sp-" + pair.replace("_", ""));
-        drawSpark(canvas, closes, closes[closes.length - 1] >= closes[0]);
+        drawSpark(document.getElementById("sp-" + pair.replace("_", "")), closes, closes[closes.length - 1] >= closes[0]);
         return;
       }
       try {
@@ -249,67 +522,47 @@
         const closes = (Array.isArray(data) ? data : []).map(x => Number(x[2])).filter(v => isFinite(v));
         if (closes.length > 2) {
           sparks[pair] = closes;
-          const canvas = document.getElementById("sp-" + pair.replace("_", ""));
-          drawSpark(canvas, closes, closes[closes.length - 1] >= closes[0]);
-          return;
+          drawSpark(document.getElementById("sp-" + pair.replace("_", "")), closes, closes[closes.length - 1] >= closes[0]);
         }
       } catch (e) {}
-      const coin = PAIR[pair];
-      if (coin) {
-        try {
-          const data = await fetchJson("https://data-api.binance.vision/api/v3/klines?symbol=" + coin.bn + "&interval=1h&limit=48");
-          const closes = (Array.isArray(data) ? data : []).map(x => Number(x[4])).filter(v => isFinite(v));
-          if (closes.length > 2) {
-            sparks[pair] = closes;
-            const canvas = document.getElementById("sp-" + pair.replace("_", ""));
-            drawSpark(canvas, closes, closes[closes.length - 1] >= closes[0]);
-          }
-        } catch (e) {}
-      }
     }
-
     function cardHTML(t) {
       const id = t.pair.replace("_", "");
       const up = t.change >= 0;
       return `<article class="card" data-pair="${t.pair}">
         <div class="row">
-          <div><div class="sym">${t.symbol}</div><div class="pair">${t.pair.replace("_", "/")}</div></div>
+          <div><div class="sym">${t.symbol}</div><div class="pair">${t.pair.replace("_","/")}</div></div>
           <div class="chg ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${up ? "+" : ""}${t.change.toFixed(2)}%</div>
         </div>
         <div class="price" id="px-${id}">${fmt(t.last)}</div>
         <canvas id="sp-${id}"></canvas>
       </article>`;
     }
-
-    function paintTickers(tickers) {
-      tickers.forEach(t => {
-        const id = t.pair.replace("_", "");
-        const el = document.getElementById("px-" + id);
-        if (el) el.textContent = fmt(t.last);
-        const card = document.querySelector('[data-pair="' + t.pair + '"]');
-        if (card) {
-          const badge = card.querySelector(".chg");
-          const up = t.change >= 0;
-          badge.className = "chg " + (up ? "up" : "down");
-          badge.textContent = (up ? "▲ +" : "▼ ") + t.change.toFixed(2) + "%";
-        }
-      });
-    }
-
     async function refresh(first) {
       try {
         const { source, tickers } = await loadTickers();
-        lastSource = source;
+        lastTickers = tickers;
+        updateEst();
         if (first) {
           grid.innerHTML = tickers.map(cardHTML).join("");
           tickers.forEach(t => loadSparks(t.pair));
         } else {
-          paintTickers(tickers);
+          tickers.forEach(t => {
+            const id = t.pair.replace("_", "");
+            const el = document.getElementById("px-" + id);
+            if (el) el.textContent = fmt(t.last);
+            const card = document.querySelector('[data-pair="' + t.pair + '"]');
+            if (card) {
+              const badge = card.querySelector(".chg");
+              const up = t.change >= 0;
+              badge.className = "chg " + (up ? "up" : "down");
+              badge.textContent = (up ? "▲ +" : "▼ ") + t.change.toFixed(2) + "%";
+            }
+          });
         }
         dot.classList.remove("err");
         status.textContent = "مباشر";
         srcEl.textContent = source;
-        subtitle.textContent = "أسعار حية من " + source + " · تتحدث تلقائيًا";
         when.textContent = new Date().toLocaleTimeString("ar-EG", {
           hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Aden"
         }) + " آسيا/عدن";
@@ -319,16 +572,8 @@
         if (first) grid.innerHTML = '<div class="errbox">تعذر تحميل الأسعار. حاول لاحقًا.</div>';
       }
     }
-
     refresh(true);
     setInterval(() => refresh(false), 15000);
-    setInterval(() => {
-      document.querySelectorAll(".card").forEach(c => {
-        const pair = c.dataset.pair;
-        delete sparks[pair];
-        loadSparks(pair);
-      });
-    }, 120000);
   </script>
 </body>
 </html>
