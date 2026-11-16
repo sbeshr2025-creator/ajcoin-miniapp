@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b0f14" />
   <meta name="description" content="محطة تداول Ajcoin — أسعار، شارت، أوامر وحدود آمنة عبر تيليجرام" />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v3-terminal -->
+  <!-- ajcoin-miniapp v4-startlink -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <style>
@@ -108,7 +108,6 @@
       <div class="chg" id="head-chg"></div>
     </div>
   </header>
-  <div class="banner hidden" id="send-hint">افتح هذه الصفحة من زر <b>📱 المحفظة والتداول</b> أسفل لوحة الكتابة حتى يصل طلبك إلى البوت. النتائج تظهر كرسائل في المحادثة.</div>
 
   <section class="panel" id="tab-markets">
     <input class="search" id="search" type="search" placeholder="ابحث عن عملة…" inputmode="search" />
@@ -281,7 +280,7 @@
   const params = new URLSearchParams(location.search);
   const walletMode = params.get("mode") === "wallet";
   const tg = window.Telegram && window.Telegram.WebApp;
-  const canSend = !!(walletMode && tg && typeof tg.sendData === "function");
+  const BOT_USER = "Ajcoinbot";
 
   if (tg) {
     try {
@@ -306,7 +305,6 @@
       document.querySelector('meta[name="theme-color"]').setAttribute("content", bg);
     } catch (e) {}
   }
-  if (!canSend) document.getElementById("send-hint").classList.remove("hidden");
 
   let pair = "BTC_USDT";
   let tf = "1h";
@@ -379,20 +377,101 @@
     const o = document.createElement("option"); o.value = p.symbol; o.textContent = p.symbol + " / USDT"; alCoin.appendChild(o);
   });
 
-  function sendAction(payload) {
-    if (!canSend) { alert("افتح من زر المحفظة والتداول في لوحة الكتابة"); return false; }
+  function encNum(n) {
+    n = Number(n);
+    if (!isFinite(n) || n < 0) return null;
+    if (Math.floor(n) === n && n < 1e12) return String(n);
+    var s = n.toFixed(10).replace(/\.?0+$/, "");
+    if (!s || s === "-0") s = "0";
+    return s.replace(".", "p");
+  }
+  function encodeStartParam(payload) {
+    var a = payload && payload.action;
+    var out = null;
+    if (a === "balance") out = "bal";
+    else if (a === "portfolio") out = "pf";
+    else if (a === "alerts_list") out = "als";
+    else if (a === "deposit") {
+      var cur = String(payload.currency || payload.coin || "").toUpperCase();
+      var chain = String(payload.chain || payload.network || "").toUpperCase();
+      if (!/^[A-Z0-9]+$/.test(cur)) return null;
+      out = "dep_" + cur + (chain && /^[A-Z0-9]+$/.test(chain) ? "_" + chain : "");
+    } else if (a === "open_orders" || a === "order_history" || a === "my_trades" || a === "cancel_all") {
+      var pref = { open_orders: "ord", order_history: "oh", my_trades: "mt", cancel_all: "ca" }[a];
+      var pair = String(payload.pair || "").toUpperCase().replace("-", "_");
+      var sym = pair.split("_")[0] || "";
+      out = pref + (sym && /^[A-Z0-9]+$/.test(sym) ? "_" + sym : "");
+    } else if (a === "alert") {
+      var symbol = String(payload.symbol || "").toUpperCase() || String(payload.pair || "").split("_")[0];
+      var tn = encNum(payload.target || payload.price);
+      if (!/^[A-Z0-9]+$/.test(symbol || "") || !tn) return null;
+      out = "al_" + symbol + "_" + tn;
+    } else if (a === "cancel_order") {
+      var oid = String(payload.order_id || payload.id || "");
+      if (!oid || !/^[A-Za-z0-9_-]+$/.test(oid)) return null;
+      var kind = String(payload.kind || "spot").toLowerCase();
+      var cpair = String(payload.pair || "").toUpperCase().replace("-", "_");
+      var csym = cpair.split("_")[0] || "";
+      if (kind === "price") out = "cx_p_" + oid;
+      else if (csym && /^[A-Z0-9]+$/.test(csym)) out = "cx_s_" + csym + "_" + oid;
+      else out = "cx_" + oid;
+    } else if (a === "trade") {
+      var sc = payload.side === "buy" ? "b" : (payload.side === "sell" ? "s" : "");
+      var tpair = String(payload.pair || "").toUpperCase().replace("-", "_");
+      var tsym = tpair.split("_")[0] || "";
+      var typ = payload.order_type || payload.type || "market";
+      var tc = { market: "m", limit: "l", stop_limit: "k", take_profit: "t", stop_loss: "h" }[typ];
+      if (!sc || !/^[A-Z0-9]+$/.test(tsym) || !tc) return null;
+      var parts = ["o", sc, tsym, tc];
+      var n;
+      if (payload.percent != null && String(payload.percent) !== "") {
+        n = encNum(payload.percent); if (!n) return null; parts.push("r" + n);
+      } else if (payload.usdt != null && payload.side === "sell") {
+        n = encNum(payload.usdt); if (!n) return null; parts.push("u" + n);
+      } else if (payload.amount != null && payload.side === "buy") {
+        n = encNum(payload.amount); if (!n) return null; parts.push("c" + n);
+      } else if (payload.usdt != null) {
+        n = encNum(payload.usdt); if (!n) return null; parts.push(payload.side === "buy" ? n : "u" + n);
+      } else if (payload.amount != null) {
+        n = encNum(payload.amount); if (!n) return null; parts.push(payload.side === "sell" ? n : "c" + n);
+      } else return null;
+      if (typ !== "market") {
+        n = encNum(payload.price || payload.limit_price); if (!n) return null; parts.push(n);
+      }
+      if (typ === "stop_limit" || typ === "take_profit" || typ === "stop_loss") {
+        n = encNum(payload.trigger || payload.trigger_price); if (!n) return null; parts.push(n);
+      }
+      out = parts.join("_");
+    }
+    if (!out || out.length > 64 || !/^[A-Za-z0-9_-]+$/.test(out)) return null;
+    return out;
+  }
+  function sendViaStartLink(payload) {
+    var param = encodeStartParam(payload);
+    if (!param) { alert("تعذر تجهيز الطلب"); return false; }
+    var url = "https://t.me/" + BOT_USER + "?start=" + encodeURIComponent(param);
     try {
-      tg.sendData(JSON.stringify(payload));
-      try { tg.close(); } catch (e) {}
+      if (tg && typeof tg.openTelegramLink === "function") tg.openTelegramLink(url);
+      else location.href = url;
+      try { if (tg) tg.close(); } catch (e) {}
       return true;
     } catch (e) {
-      alert("افتح من زر المحفظة والتداول في لوحة الكتابة");
+      alert("تعذر فتح المحادثة لإرسال الطلب.");
       return false;
     }
   }
+  function sendAction(payload) {
+    if (tg && typeof tg.sendData === "function") {
+      try {
+        tg.sendData(JSON.stringify(payload));
+        try { tg.close(); } catch (e) {}
+        return true;
+      } catch (e) {}
+    }
+    return sendViaStartLink(payload);
+  }
   function bindSend(id, fn) {
     document.getElementById(id).addEventListener("click", fn);
-    document.getElementById(id).disabled = !canSend;
   }
 
   document.getElementById("otype-seg").addEventListener("click", ev => {
@@ -464,7 +543,6 @@
   }
 
   document.getElementById("trade-btn").addEventListener("click", () => {
-    if (!canSend) { alert("افتح من زر المحفظة والتداول في لوحة الكتابة"); return; }
     if (!TRADEABLE.has(pair)) { alert("هذا الزوج غير مسموح للتداول"); return; }
     const amt = Number(document.getElementById("amt").value);
     if (!(amt > 0)) { alert("أدخل كمية صحيحة"); return; }
@@ -483,7 +561,6 @@
     }
     sendAction(payload);
   });
-  document.getElementById("trade-btn").disabled = !canSend;
 
   bindSend("btn-open", () => sendAction({ action: "open_orders", pair: pair }));
   bindSend("btn-hist", () => sendAction({ action: "order_history", pair: pair }));
