@@ -14,10 +14,11 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v8-deposit -->
+  <!-- ajcoin-miniapp v9-deposit -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+  <script src="inflate.js"></script>
   <style>
     :root {
       --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
@@ -319,6 +320,7 @@
     </div>
     <div class="card" style="margin-top:12px">
       <h3>عناوين الإيداع</h3>
+      <p class="hint soft" id="dep-diag">عناوين محفوظة: 0</p>
       <div id="dep-saved-list" class="dep-saved"><div class="empty">لا توجد عناوين محفوظة بعد. افتح التطبيق من زر المحفظة والتداول أسفل الشاشة.</div></div>
     </div>
   </section>
@@ -518,10 +520,18 @@
     return bytes;
   }
   async function inflateRawBytes(bytes) {
-    if (typeof DecompressionStream !== "function") throw new Error("no-decompress");
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-    const buf = await new Response(stream).arrayBuffer();
-    return new TextDecoder("utf-8").decode(buf);
+    if (typeof DecompressionStream === "function") {
+      try {
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+        const buf = await new Response(stream).arrayBuffer();
+        return new TextDecoder("utf-8").decode(buf);
+      } catch (e) { /* fall through to JS inflate */ }
+    }
+    if (typeof inflateRawSync === "function") {
+      const out = inflateRawSync(bytes);
+      return new TextDecoder("utf-8").decode(out);
+    }
+    throw new Error("no-decompress");
   }
   function expandDepsPayload(data) {
     const out = [];
@@ -620,20 +630,26 @@
   function csGet(key) {
     return new Promise(resolve => {
       if (!cloudStorageOk()) { resolve(null); return; }
+      let done = false;
+      const finish = v => { if (!done) { done = true; clearTimeout(tmr); resolve(v); } };
+      const tmr = setTimeout(() => finish(null), 900);
       try {
         tg.CloudStorage.getItem(key, (err, value) => {
-          if (err) resolve(null);
-          else resolve(value == null ? null : String(value));
+          if (err) finish(null);
+          else finish(value == null ? null : String(value));
         });
-      } catch (e) { resolve(null); }
+      } catch (e) { finish(null); }
     });
   }
   function csSet(key, value) {
     return new Promise(resolve => {
       if (!cloudStorageOk()) { resolve(false); return; }
+      let done = false;
+      const finish = v => { if (!done) { done = true; clearTimeout(tmr); resolve(v); } };
+      const tmr = setTimeout(() => finish(false), 900);
       try {
-        tg.CloudStorage.setItem(key, value, (err, ok) => resolve(!err && ok !== false));
-      } catch (e) { resolve(false); }
+        tg.CloudStorage.setItem(key, value, (err, ok) => finish(!err && ok !== false));
+      } catch (e) { finish(false); }
     });
   }
   let depStore = {};
@@ -742,11 +758,16 @@
     const stale = isDepStale(info, DEP_WEEK);
     document.getElementById("dep-inline-refresh").classList.toggle("hidden", !stale);
   }
+  function updateDepDiag(n) {
+    const el = document.getElementById("dep-diag");
+    if (el) el.textContent = "عناوين محفوظة: " + String(n == null ? Object.keys(depStore).length : n);
+  }
   function renderSavedDeps() {
     const host = document.getElementById("dep-saved-list");
     if (!host) return;
     const items = Object.keys(depStore).map(k => depStore[k]).filter(Boolean);
     items.sort((a, b) => Number(b.t || 0) - Number(a.t || 0));
+    updateDepDiag(items.length);
     host.innerHTML = "";
     if (!items.length) {
       const empty = document.createElement("div");
@@ -800,47 +821,68 @@
     });
     host._items = items;
   }
-  function consumeDepHash() {
-    const hash = location.hash || "";
-    const m1 = hash.match(/^#dep=([A-Za-z0-9_-]+)$/);
-    const m2 = hash.match(/^#deps=([A-Za-z0-9_-]+)$/);
+  function readUrlParam(name) {
     try {
-      const clean = location.pathname + location.search;
-      if (location.hash) history.replaceState(null, "", clean);
+      const qs = new URLSearchParams(location.search);
+      if (qs.get(name)) return qs.get(name);
     } catch (e) {}
-    return { m1: m1, m2: m2 };
+    const hash = String(location.hash || "").replace(/^#/, "");
+    try {
+      const hp = new URLSearchParams(hash);
+      if (hp.get(name)) return hp.get(name);
+    } catch (e) {}
+    const m = hash.match(new RegExp("(?:^|&)" + name + "=([A-Za-z0-9_-]+)"));
+    return m ? m[1] : null;
+  }
+  function consumeDepParams() {
+    const dep = readUrlParam("dep");
+    const deps = readUrlParam("deps");
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete("dep");
+      u.searchParams.delete("deps");
+      // Keep Telegram's #tgWebAppData hash intact; only drop our own leftover hash payload.
+      let hash = u.hash || "";
+      if (/^(#dep=|#deps=)/.test(hash) && hash.indexOf("tgWebApp") === -1) hash = "";
+      history.replaceState(null, "", u.pathname + u.search + hash);
+    } catch (e) {}
+    return { dep: dep, deps: deps };
   }
   async function initDepositStore() {
-    await loadDepStore();
-    const { m1, m2 } = consumeDepHash();
+    // Read the URL first so Telegram's CloudStorage cannot block delivery of ?deps=.
+    const { dep, deps } = consumeDepParams();
     let opened = null;
     let packed = false;
+    let urlItems = [];
     try {
-      if (m1) {
-        const info = normalizeDep(JSON.parse(b64urlDecode(m1[1])));
-        if (!info) { toast("تعذر قراءة عنوان الإيداع.", "err"); }
-        else {
-          await saveDepInfos([info]);
-          opened = info;
-        }
-      } else if (m2) {
-        const norms = await decodeDepsFragment(m2[1]);
-        if (!norms.length) { toast("تعذر قراءة عناوين الإيداع.", "err"); }
-        else {
+      if (dep) {
+        const info = normalizeDep(JSON.parse(b64urlDecode(dep)));
+        if (info) urlItems.push(info);
+      }
+      if (deps) {
+        const norms = await decodeDepsFragment(deps);
+        if (norms.length) {
           packed = true;
-          await saveDepInfos(norms);
-          if (norms.length === 1) opened = norms[0];
+          urlItems = urlItems.concat(norms);
         }
       }
     } catch (e) {
       toast("تعذر قراءة عنوان الإيداع.", "err");
     }
+    if (urlItems.length && !opened && urlItems.length === 1) opened = urlItems[0];
+    try { await loadDepStore(); } catch (e) {}
+    if (urlItems.length) {
+      try { await saveDepInfos(urlItems); } catch (e) { urlItems.forEach(it => { const n = normalizeDep(it); if (n) depStore[depKey(n.c, n.n)] = n; }); }
+    } else if (!dep && !deps && !Object.keys(depStore).length) {
+      /* nothing from URL or store */
+    }
     renderSavedDeps();
     syncInlineDep();
+    updateDepDiag();
     if (opened) {
       showTab("portfolio");
       openDepView(opened);
-    } else if (packed || (walletMode && Object.keys(depStore).length)) {
+    } else if (packed || deps || urlItems.length || (walletMode && Object.keys(depStore).length)) {
       showTab("portfolio");
     }
   }

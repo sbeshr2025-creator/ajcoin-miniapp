@@ -1,5 +1,5 @@
-/* Network-first for the app page so updates (v8-deposit) go live; cache CDN shells only. */
-const CACHE = "ajcoin-v8-deposit";
+/* Network-first for the app page so updates (v9-deposit) go live; cache CDN shells only. */
+const CACHE = "ajcoin-v9-deposit";
 self.addEventListener("install", e => { self.skipWaiting(); });
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
