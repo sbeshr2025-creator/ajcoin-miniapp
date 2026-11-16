@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v9-deposit -->
+  <!-- ajcoin-miniapp v10-futures -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -45,11 +45,11 @@
       background: #3b82f622; border: 1px solid #3b82f655; color: #dbeafe; font-size: 13px; line-height: 1.55; }
     .banner.warn { background: #f5c15c18; border-color: #f5c15c55; color: var(--warn); }
     .hidden { display: none !important; }
-    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(6, 1fr);
+    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(7, 1fr);
       background: color-mix(in srgb, var(--card) 92%, #000); border-top: 1px solid var(--line);
       padding: 4px 2px calc(6px + env(safe-area-inset-bottom)); z-index: 20; backdrop-filter: blur(10px); }
-    .tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 10px;
-      padding: 8px 1px; border-radius: 10px; min-height: 48px; transition: background .15s, color .15s; }
+    .tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 9px;
+      padding: 6px 0; border-radius: 10px; min-height: 48px; transition: background .15s, color .15s; }
     .tabs button.on { color: var(--text); background: #ffffff10; font-weight: 700; }
     .tabs button span { display: block; font-size: 16px; line-height: 1.1; }
     .panel { padding: 8px 16px 20px; }
@@ -162,9 +162,29 @@
     .btn-mini.refresh { border-color: #f5c15c55; color: var(--warn); }
     .dep-missing { margin-top: 12px; }
     .dep-missing .btn-mini { width: 100%; margin-top: 8px; background: var(--bg); color: var(--muted); font-weight: 600; }
+
+    html { color-scheme: dark; }
+    html.theme-light, body.theme-light { color-scheme: light; }
+    .theme-light .toast { background: #ffffff; color: #111827; box-shadow: 0 8px 24px #00000022; }
+    .theme-light .tabs button.on { background: #00000012; }
+    .theme-light .actions button.danger { color: #b91c1c; }
+    .theme-light .overlay { background: #00000055; }
+    .theme-light .skel { background: linear-gradient(90deg, #e8edf2 0%, #f4f7fa 40%, #e8edf2 80%); background-size: 200% 100%; }
+    .ptr { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0 0; height: 28px; }
+    .fut-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .fut-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;
+      background: var(--card); border-radius: 12px; padding: 10px; border: 1px solid transparent; min-height: 56px; }
+    .fut-row.on { border-color: #3b82f688; }
+    .fut-row .meta { font-size: 11px; color: var(--muted); direction: ltr; text-align: left; }
+    .levs { display: flex; gap: 6px; margin: 6px 0; }
+    .levs button { flex: 1; }
+    .errbox { background: #ea394318; border: 1px solid #ea394355; color: #fca5a5;
+      border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.6; margin: 8px 0; }
+    .theme-light .errbox { color: #b91c1c; }
   </style>
 </head>
 <body>
+  <div id="ptr" class="ptr hidden">جارٍ التحديث…</div>
   <header>
     <div class="title">
       <h1>محطة التداول</h1>
@@ -251,9 +271,9 @@
         <button data-unit="coin">بالعملة</button>
       </div>
       <label class="f" for="amt">الكمية</label>
-      <input id="amt" type="number" inputmode="decimal" step="any" value="5" />
+      <input id="amt" type="number" inputmode="decimal" step="any" value="1" />
       <label class="f" for="amt-max">حد أقصى مرجعي لأزرار النسبة (ليس رصيدك)</label>
-      <input id="amt-max" type="number" inputmode="decimal" step="any" value="5" />
+      <input id="amt-max" type="number" inputmode="decimal" step="any" value="1" />
       <div class="pct" id="pct">
         <button data-p="25">25%</button>
         <button data-p="50">50%</button>
@@ -262,8 +282,60 @@
       </div>
       <div class="est" id="est">جاري تقدير الصفقة…</div>
       <button class="go" id="trade-btn">إرسال أمر الشراء للتأكيد</button>
-      <p class="note">كل أمر يُرسل إلى البوت ويحتاج موافقتك بـ ✅ خلال 60 ثانية قبل التنفيذ. الحد 5 USDT للصفقة و20 في اليوم. السحب غير متاح هنا — استخدم تطبيق Gate.io.</p>
+      <p class="note">كل أمر يُرسل إلى البوت ويحتاج موافقتك بـ ✅ خلال 60 ثانية قبل التنفيذ. الحد 1 USDT للصفقة و20 في اليوم. معظم الأزواج الفورية في Gate حدها الأدنى 3 USDT — إن كان طلبك أقل سيظهر تنبيه واضح ولن يُرسل للتأكيد. السحب غير متاح هنا — استخدم تطبيق Gate.io.</p>
     </div>
+  </section>
+
+
+  <section class="panel hidden" id="tab-futures">
+    <p class="hint soft">عقود آجلة بهامش USDT من Gate.io. الأسعار والتمويل من الواجهة العامة. الفتح والإغلاق والإلغاء يصل إلى البوت ويحتاج موافقتك ✅ خلال 60 ثانية. حد الهامش 1 USDT للصفقة، والرافعة حتى 5x (الافتراضي 2x). السحب غير متاح هنا.</p>
+    <div class="fut-list" id="fut-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    <div class="form">
+      <label class="f" for="fut-contract">العقد</label>
+      <select id="fut-contract"></select>
+      <div class="seg sides" id="fut-side-seg">
+        <button class="buy on" data-fside="long">لونغ (شراء)</button>
+        <button class="sell" data-fside="short">شورث (بيع)</button>
+      </div>
+      <div class="seg" id="fut-type-seg">
+        <button data-ft="market" class="on">سوق</button>
+        <button data-ft="limit">محدود</button>
+      </div>
+      <div id="fut-px-box" class="hidden">
+        <label class="f" for="fut-px">سعر الأمر (USDT)</label>
+        <input id="fut-px" type="number" inputmode="decimal" step="any" />
+      </div>
+      <label class="f">الرافعة (حد أقصى 5x)</label>
+      <div class="levs" id="fut-levs">
+        <button data-lev="1">1x</button>
+        <button data-lev="2" class="chip on">2x</button>
+        <button data-lev="3">3x</button>
+        <button data-lev="4">4x</button>
+        <button data-lev="5">5x</button>
+      </div>
+      <div class="seg" id="fut-mode-seg">
+        <button data-fm="isolated" class="on">معزول</button>
+        <button data-fm="cross">متقاطع</button>
+      </div>
+      <label class="f" for="fut-usdt">الهامش (USDT) — حد الصفقة 1</label>
+      <input id="fut-usdt" type="number" inputmode="decimal" step="any" value="1" max="1" />
+      <label class="f" for="fut-tp">جني ربح (اختياري)</label>
+      <input id="fut-tp" type="number" inputmode="decimal" step="any" placeholder="سعر التفعيل" />
+      <label class="f" for="fut-sl">وقف خسارة (اختياري)</label>
+      <input id="fut-sl" type="number" inputmode="decimal" step="any" placeholder="سعر التفعيل" />
+      <div class="est" id="fut-est">جاري تقدير حجم العقد…</div>
+      <div class="errbox hidden" id="fut-err"></div>
+      <button class="go" id="fut-open">إرسال أمر العقود للتأكيد</button>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button id="fut-pos">عرض المراكز والأرباح غير المحققة</button>
+      <button id="fut-ords">عرض أوامر العقود المفتوحة</button>
+      <button id="fut-close" class="danger">طلب إغلاق مركز العقد المحدد</button>
+    </div>
+    <label class="f" for="fut-cancel-id">إلغاء أمر عقود برقمِه</label>
+    <input id="fut-cancel-id" placeholder="رقم الأمر من رسالة البوت" />
+    <button class="go sellbtn" id="fut-cancel" style="margin-top:10px">طلب إلغاء أمر العقود</button>
+    <p class="note">إذا كان هامش 1 USDT أقل من الحد الأدنى لعقد واحد عند الرافعة المختارة، سيظهر تنبيه ولن يُرسل الطلب. أغلب العقود الكبيرة (مثل BTC وETH) تحتاج هامشاً أعلى من 1 USDT حتى عند 5x. الأزواج الأصغر مثل BNB وDOGE قد تكون ممكنة. الرصيد في حساب العقود منفصل عن الفوري.</p>
   </section>
 
   <section class="panel hidden" id="tab-orders">
@@ -353,6 +425,7 @@
   <nav class="tabs" id="tabs">
     <button data-tab="markets" class="on"><span>📉</span>الأسواق</button>
     <button data-tab="trade"><span>📈</span>تداول</button>
+    <button data-tab="futures"><span>📜</span>عقود</button>
     <button data-tab="smart"><span>🤖</span>ذكي</button>
     <button data-tab="orders"><span>🧾</span>أوامري</button>
     <button data-tab="portfolio"><span>👛</span>محفظة</button>
@@ -408,33 +481,57 @@
   const DEP_WEEK = 7 * 24 * 3600;
   const GATE = "https://api.gateio.ws/api/v4";
   const FEE = 0.002;
+  const TRADE_CAP = 1;
+  const FUT_CONTRACTS = ["BTC_USDT", "ETH_USDT", "SOL_USDT", "BNB_USDT", "XRP_USDT", "DOGE_USDT"];
+  let spotMinQuote = 0;
 
   const params = new URLSearchParams(location.search);
   const walletMode = params.get("mode") === "wallet";
   const tg = window.Telegram && window.Telegram.WebApp;
   const BOT_USER = "Ajcoinbot";
 
+  function hexLum(hex) {
+    hex = String(hex || "").replace("#", "");
+    if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+    if (hex.length !== 6) return 0;
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  function applyTheme() {
+    const p = (tg && tg.themeParams) || {};
+    const root = document.documentElement;
+    if (p.bg_color) root.style.setProperty("--bg", p.bg_color);
+    if (p.secondary_bg_color) {
+      root.style.setProperty("--card", p.secondary_bg_color);
+      root.style.setProperty("--card-2", p.secondary_bg_color);
+    }
+    if (p.text_color) root.style.setProperty("--text", p.text_color);
+    if (p.hint_color) {
+      root.style.setProperty("--muted", p.hint_color);
+      root.style.setProperty("--hint", p.hint_color);
+      root.style.setProperty("--line", p.hint_color + "44");
+    }
+    if (p.button_color) root.style.setProperty("--btn", p.button_color);
+    let light = false;
+    if (tg && tg.colorScheme === "light") light = true;
+    else if (tg && tg.colorScheme === "dark") light = false;
+    else if (p.bg_color) light = hexLum(p.bg_color) > 0.55;
+    root.classList.toggle("theme-light", light);
+    document.body.classList.toggle("theme-light", light);
+    root.style.colorScheme = light ? "light" : "dark";
+    const bg = p.bg_color || (light ? "#f4f6f8" : "#0b0f14");
+    try { if (tg) tg.setHeaderColor(bg); } catch (e) {}
+    try { if (tg) tg.setBackgroundColor(bg); } catch (e) {}
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", bg);
+  }
   if (tg) {
     try {
       tg.ready(); tg.expand();
-      const p = tg.themeParams || {};
-      const root = document.documentElement;
-      if (p.bg_color) root.style.setProperty("--bg", p.bg_color);
-      if (p.secondary_bg_color) {
-        root.style.setProperty("--card", p.secondary_bg_color);
-        root.style.setProperty("--card-2", p.secondary_bg_color);
-      }
-      if (p.text_color) root.style.setProperty("--text", p.text_color);
-      if (p.hint_color) {
-        root.style.setProperty("--muted", p.hint_color);
-        root.style.setProperty("--hint", p.hint_color);
-        root.style.setProperty("--line", p.hint_color + "44");
-      }
-      if (p.button_color) root.style.setProperty("--btn", p.button_color);
-      const bg = p.bg_color || "#0b0f14";
-      try { tg.setHeaderColor(bg); } catch (e) {}
-      try { tg.setBackgroundColor(bg); } catch (e) {}
-      document.querySelector('meta[name="theme-color"]').setAttribute("content", bg);
+      applyTheme();
+      if (typeof tg.onEvent === "function") tg.onEvent("themeChanged", applyTheme);
     } catch (e) {}
   }
 
@@ -490,6 +587,7 @@
     try {
       if (!tg || !tg.HapticFeedback) return;
       if (kind === "ok") tg.HapticFeedback.notificationOccurred("success");
+      else if (kind === "err" || kind === "error") tg.HapticFeedback.notificationOccurred("error");
       else if (kind === "sel") tg.HapticFeedback.selectionChanged();
       else tg.HapticFeedback.impactOccurred(kind || "light");
     } catch (e) {}
@@ -902,6 +1000,10 @@
           tg.MainButton.setText("طلب الإشارة الذكية");
           tg.MainButton.show();
           try { tg.MainButton.setParams({ color: "#3b82f6", text_color: "#ffffff" }); } catch (e) {}
+        } else if (name === "futures") {
+          tg.MainButton.setText("إرسال أمر العقود للتأكيد");
+          tg.MainButton.show();
+          try { tg.MainButton.setParams({ color: "#0d9488", text_color: "#ffffff" }); } catch (e) {}
         } else {
           tg.MainButton.hide();
         }
@@ -909,7 +1011,7 @@
     } catch (e) {}
   }
   function showTab(name) {
-    ["markets", "trade", "smart", "orders", "portfolio", "alerts"].forEach(t => {
+    ["markets", "trade", "futures", "smart", "orders", "portfolio", "alerts"].forEach(t => {
       document.getElementById("tab-" + t).classList.toggle("hidden", t !== name);
       const b = document.querySelector('#tabs [data-tab="' + t + '"]');
       if (b) b.classList.toggle("on", t === name);
@@ -917,6 +1019,7 @@
     if (name === "trade") {
       setTimeout(() => { if (chart) chart.timeScale().fitContent(); if (rsiChart) rsiChart.timeScale().fitContent(); }, 40);
     }
+    if (name === "futures") { try { loadFutures(); updateFutEst(); } catch (e) {} }
     syncTelegramChrome(name);
   }
   document.getElementById("tabs").addEventListener("click", ev => {
@@ -930,8 +1033,10 @@
       haptic("medium");
       const smartOn = !document.getElementById("tab-smart").classList.contains("hidden");
       const tradeOn = !document.getElementById("tab-trade").classList.contains("hidden");
+      const futOn = !document.getElementById("tab-futures").classList.contains("hidden");
       if (smartOn) document.getElementById("btn-ai").click();
       else if (tradeOn) document.getElementById("trade-btn").click();
+      else if (futOn) document.getElementById("fut-open").click();
     });
   } catch (e) {}
 
@@ -1055,6 +1160,45 @@
       out = ap + "_" + asym;
     } else if (a === "ai_watch") {
       out = payload.enabled ? "aiw_on" : "aiw_off";
+    } else if (a === "fut_pos") out = "fp";
+    else if (a === "fut_ord") out = "fo";
+    else if (a === "fut_close") {
+      var fc = String(payload.contract || payload.pair || "").toUpperCase().replace("-", "_");
+      var fcs = fc.split("_")[0] || "";
+      if (!/^[A-Z0-9]+$/.test(fcs)) return null;
+      out = "fc_" + fcs;
+    } else if (a === "fut_lev") {
+      var lc = String(payload.contract || "").toUpperCase().replace("-", "_").split("_")[0];
+      var lev = parseInt(payload.leverage, 10);
+      if (!/^[A-Z0-9]+$/.test(lc || "") || !(lev >= 1 && lev <= 5)) return null;
+      out = "flev_" + lc + "_" + lev;
+    } else if (a === "fut_cancel") {
+      var foid = String(payload.order_id || payload.id || "");
+      if (!foid || !/^[A-Za-z0-9_-]+$/.test(foid)) return null;
+      out = "fx_" + foid;
+    } else if (a === "fut_tpsl") {
+      var tpc = String(payload.contract || "").toUpperCase().replace("-", "_").split("_")[0];
+      var tpn = encNum(payload.price || payload.trigger);
+      var k = String(payload.kind || "tp").toLowerCase();
+      if (!/^[A-Z0-9]+$/.test(tpc || "") || !tpn) return null;
+      out = (k === "sl" ? "fsp_" : "ftp_") + tpc + "_" + tpn;
+    } else if (a === "fut_open") {
+      var fside = payload.side === "long" || payload.side === "buy" || payload.side === "l" ? "l" :
+        (payload.side === "short" || payload.side === "sell" || payload.side === "s" ? "s" : "");
+      var ftyp = (payload.order_type || payload.type || "market") === "limit" ? "l" : "m";
+      var fcon = String(payload.contract || payload.pair || "").toUpperCase().replace("-", "_");
+      var fsym = fcon.split("_")[0] || "";
+      var fu = encNum(payload.usdt || payload.margin);
+      var fl = parseInt(payload.leverage, 10) || 2;
+      var fm = String(payload.margin_mode || payload.mode || "isolated").toLowerCase() === "cross" ? "c" : "i";
+      if (!fside || !/^[A-Z0-9]+$/.test(fsym) || !fu || !(fl >= 1 && fl <= 5)) return null;
+      var fparts = ["f", fside, fsym, ftyp, fu, fl + "x" + fm];
+      if (ftyp === "l") {
+        var fpx = encNum(payload.price || payload.limit_price);
+        if (!fpx) return null;
+        fparts.push(fpx);
+      }
+      out = fparts.join("_");
     }
     if (!out || out.length > 64 || !/^[A-Za-z0-9_-]+$/.test(out)) return null;
     return out;
@@ -1153,15 +1297,36 @@
       html += "<br>الكمية ≈ <b>" + fmt(qty, 8) + " " + sym + "</b> · القيمة ≈ <b>" + fmt(usdt, 4) + " USDT</b>";
       html += "<br>تقدير الرسوم (0.2٪): <b>" + fmt(fee, 4) + " USDT</b>";
     }
-    if (usdt > 5) html += "<br>⚠️ الحد الأقصى للصفقة 5 USDT؛ البوت سيرفض ما فوق ذلك.";
+    if (usdt > TRADE_CAP) html += "<br>⚠️ الحد الأقصى للصفقة " + TRADE_CAP + " USDT؛ البوت سيرفض ما فوق ذلك.";
+    if (spotMinQuote && usdt > 0 && usdt < spotMinQuote) {
+      html += "<br>⚠️ قيمة الصفقة (" + fmt(usdt, 4) + " USDT) أقل من الحد الأدنى لزوج " + pair.replace("_", "/") + " في Gate.io (" + fmt(spotMinQuote, 2) + " USDT).";
+      if (TRADE_CAP < spotMinQuote) html += " حد الصفقة في التطبيق هو " + TRADE_CAP + " USDT، وهو أقل من حد المنصة، لذلك لن يُرسل طلب التأكيد.";
+    }
     if (!TRADEABLE.has(pair)) html += "<br>⚠️ هذا الزوج للعرض فقط. التداول متاح للأزواج المسموحة.";
     el.innerHTML = html;
   }
 
-  document.getElementById("trade-btn").addEventListener("click", () => {
+  document.getElementById("trade-btn").addEventListener("click", async () => {
     if (!TRADEABLE.has(pair)) { alert("هذا الزوج غير مسموح للتداول"); return; }
     const amt = Number(document.getElementById("amt").value);
     if (!(amt > 0)) { alert("أدخل كمية صحيحة"); return; }
+    const t = tickers[pair] || {};
+    const live = Number(t.last);
+    const px = orderType === "market" ? live : (Number(document.getElementById("limit-px").value) || live);
+    const usdtEst = unit === "usdt" ? amt : (px > 0 ? amt * px : 0);
+    if (usdtEst > TRADE_CAP + 1e-12) {
+      alert("الحد الأقصى لكل صفقة هو " + TRADE_CAP + " USDT.");
+      try { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error"); } catch (e) {}
+      return;
+    }
+    const mq = await getPairMinQuote(pair);
+    if (mq && usdtEst > 0 && usdtEst < mq) {
+      let msg = "قيمة الصفقة (" + fmt(usdtEst, 4) + " USDT) أقل من الحد الأدنى لزوج " + pair.replace("_", "/") + " في Gate.io (" + fmt(mq, 2) + " USDT).";
+      if (TRADE_CAP < mq) msg += "\nحد الصفقة في التطبيق هو " + TRADE_CAP + " USDT، وهو أقل من حد المنصة لهذا الزوج، لذلك لا يمكن إرسال طلب التأكيد.";
+      alert(msg);
+      try { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error"); } catch (e) {}
+      return;
+    }
     const payload = { action: "trade", side: side, pair: pair, order_type: orderType };
     if (unit === "usdt") payload.usdt = amt;
     else payload.amount = amt;
@@ -1286,6 +1451,7 @@
   function selectPair(p) {
     pair = p;
     renderHead(); renderMarkets(); updateEst();
+    try { refreshSpotMin(); } catch (e) {}
     if (orderType !== "market" && tickers[pair]) {
       document.getElementById("limit-px").value = tickers[pair].last;
     }
@@ -1461,6 +1627,205 @@
       }
     }
   });
+
+  const pairInfoCache = {};
+  async function getPairMinQuote(p) {
+    p = p || pair;
+    const e = pairInfoCache[p];
+    if (e && Date.now() - e.t < 300000) return e.v;
+    try {
+      const r = await fetch(GATE + "/spot/currency_pairs/" + encodeURIComponent(p));
+      if (!r.ok) { pairInfoCache[p] = { t: Date.now(), v: 0 }; return 0; }
+      const d = await r.json();
+      const v = Number(d.min_quote_amount) || 0;
+      pairInfoCache[p] = { t: Date.now(), v: v };
+      return v;
+    } catch (err) { return (e && e.v) || 0; }
+  }
+  function refreshSpotMin() {
+    getPairMinQuote(pair).then(v => { spotMinQuote = v || 0; try { updateEst(); } catch (x) {} });
+  }
+  refreshSpotMin();
+
+  let futSide = "long", futType = "market", futLev = 2, futMode = "isolated";
+  let futSpecs = {}, futTickers = {};
+  const futSel = document.getElementById("fut-contract");
+  FUT_CONTRACTS.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c; o.textContent = c.replace("_", "/");
+    futSel.appendChild(o);
+  });
+  function futSym() { return (futSel.value || "BTC_USDT"); }
+  async function loadFutures() {
+    const list = document.getElementById("fut-list");
+    try {
+      const [cr, tr] = await Promise.all([
+        fetch(GATE + "/futures/usdt/contracts"),
+        fetch(GATE + "/futures/usdt/tickers")
+      ]);
+      if (!cr.ok || !tr.ok) throw new Error("http");
+      const contracts = await cr.json();
+      const ticks = await tr.json();
+      (contracts || []).forEach(c => { if (c && c.name) futSpecs[c.name] = c; });
+      (ticks || []).forEach(t => { if (t && t.contract) futTickers[t.contract] = t; });
+      list.innerHTML = "";
+      FUT_CONTRACTS.forEach(name => {
+        const c = futSpecs[name] || {};
+        const t = futTickers[name] || {};
+        const mark = Number(c.mark_price || t.mark_price || t.last || 0);
+        const chg = Number(t.change_percentage || c.change_percentage || 0);
+        const fund = Number(c.funding_rate || t.funding_rate || 0);
+        const row = document.createElement("div");
+        row.className = "fut-row" + (name === futSym() ? " on" : "");
+        row.dataset.contract = name;
+        row.innerHTML = '<div><div class="sym">' + name.replace("_", "/") + '</div><div class="vol">تمويل ' + (fund * 100).toFixed(4) + '%</div></div>' +
+          '<div class="last">' + fmt(mark) + '</div>' +
+          '<div class="chgc ' + (chg >= 0 ? "bid" : "ask") + '">' + (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%</div>";
+        row.addEventListener("click", () => {
+          haptic("sel");
+          futSel.value = name;
+          document.querySelectorAll(".fut-row").forEach(x => x.classList.toggle("on", x === row));
+          updateFutEst();
+        });
+        list.appendChild(row);
+      });
+      updateFutEst();
+    } catch (e) {
+      if (!list.children.length || list.querySelector(".skel")) {
+        list.innerHTML = '<div class="empty">تعذر جلب عقود Gate الآن. ستُستخدم القيم المحفوظة إن وُجدت.</div>';
+      }
+    }
+  }
+  function updateFutEst() {
+    const est = document.getElementById("fut-est");
+    const err = document.getElementById("fut-err");
+    const name = futSym();
+    const c = futSpecs[name] || {};
+    const t = futTickers[name] || {};
+    const mark = Number(c.mark_price || t.mark_price || t.last || 0);
+    const qm = Number(c.quanto_multiplier || 0);
+    let omin = parseInt(c.order_size_min, 10);
+    if (!(omin > 0)) omin = 1;
+    const usdt = Number(document.getElementById("fut-usdt").value) || 0;
+    const btn = document.getElementById("fut-open");
+    let html = "سعر العلامة: <b>" + fmt(mark) + " USDT</b> · رافعة <b>" + futLev + "x</b> · " + (futMode === "cross" ? "متقاطع" : "معزول");
+    err.classList.add("hidden");
+    err.textContent = "";
+    btn.disabled = false;
+    if (usdt > TRADE_CAP + 1e-12) {
+      err.textContent = "الحد الأقصى لهامش الصفقة هو " + TRADE_CAP + " USDT.";
+      err.classList.remove("hidden");
+      btn.disabled = true;
+    } else if (mark > 0 && qm > 0 && usdt > 0) {
+      const raw = (usdt * futLev) / (qm * mark);
+      const contracts = Math.floor(raw);
+      const minNotional = omin * qm * mark;
+      const minMargin = minNotional / futLev;
+      if (contracts < omin) {
+        err.textContent = "هامش " + fmt(usdt, 4) + " USDT برافعة " + futLev + "x لا يكفي لفتح الحد الأدنى لهذا العقد (" + omin + " عقد، قيمة اسمية تقارب " + fmt(minNotional, 2) + " USDT). الحد الأدنى للهامش عند هذه الرافعة حوالي " + fmt(minMargin, 2) + " USDT. حد الصفقة الحالي " + TRADE_CAP + " USDT.";
+        err.classList.remove("hidden");
+        btn.disabled = true;
+      } else {
+        const usedN = contracts * qm * mark;
+        const usedM = usedN / futLev;
+        html += "<br>عدد العقود ≈ <b>" + contracts + "</b> · القيمة الاسمية ≈ <b>" + fmt(usedN, 2) + " USDT</b> · الهامش ≈ <b>" + fmt(usedM, 4) + " USDT</b>";
+      }
+    } else if (!mark) {
+      html += "<br>جاري جلب مواصفات العقد…";
+    }
+    est.innerHTML = html;
+    document.querySelectorAll(".fut-row").forEach(x => x.classList.toggle("on", x.dataset.contract === name));
+  }
+  document.getElementById("fut-side-seg").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-fside]"); if (!b) return;
+    futSide = b.dataset.fside;
+    document.querySelectorAll("#fut-side-seg button").forEach(x => x.classList.toggle("on", x === b));
+    const go = document.getElementById("fut-open");
+    go.textContent = futSide === "long" ? "إرسال أمر لونغ للتأكيد" : "إرسال أمر شورث للتأكيد";
+    go.classList.toggle("sellbtn", futSide === "short");
+    updateFutEst();
+    const on = !document.getElementById("tab-futures").classList.contains("hidden");
+    if (on) syncTelegramChrome("futures");
+  });
+  document.getElementById("fut-type-seg").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-ft]"); if (!b) return;
+    futType = b.dataset.ft;
+    document.querySelectorAll("#fut-type-seg button").forEach(x => x.classList.toggle("on", x === b));
+    document.getElementById("fut-px-box").classList.toggle("hidden", futType !== "limit");
+    updateFutEst();
+  });
+  document.getElementById("fut-levs").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-lev]"); if (!b) return;
+    futLev = parseInt(b.dataset.lev, 10);
+    document.querySelectorAll("#fut-levs button").forEach(x => {
+      x.classList.toggle("on", x === b);
+      x.classList.toggle("chip", true);
+    });
+    updateFutEst();
+  });
+  document.getElementById("fut-mode-seg").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-fm]"); if (!b) return;
+    futMode = b.dataset.fm;
+    document.querySelectorAll("#fut-mode-seg button").forEach(x => x.classList.toggle("on", x === b));
+    updateFutEst();
+  });
+  document.getElementById("fut-contract").addEventListener("change", updateFutEst);
+  document.getElementById("fut-usdt").addEventListener("input", updateFutEst);
+  document.getElementById("fut-open").addEventListener("click", () => {
+    const usdt = Number(document.getElementById("fut-usdt").value);
+    if (!(usdt > 0)) { alert("أدخل هامش الصفقة بالـ USDT."); return; }
+    if (usdt > TRADE_CAP + 1e-12) { alert("الحد الأقصى لهامش الصفقة هو " + TRADE_CAP + " USDT."); return; }
+    if (document.getElementById("fut-open").disabled) {
+      const msg = document.getElementById("fut-err").textContent || "حجم الصفقة أقل من حد العقد.";
+      alert(msg);
+      try { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error"); } catch (e) {}
+      return;
+    }
+    const payload = {
+      action: "fut_open", side: futSide, contract: futSym(),
+      order_type: futType, usdt: usdt, leverage: futLev, margin_mode: futMode
+    };
+    if (futType === "limit") {
+      const lp = Number(document.getElementById("fut-px").value);
+      if (!(lp > 0)) { alert("أدخل سعر الأمر المحدود."); return; }
+      payload.price = lp;
+    }
+    const tp = Number(document.getElementById("fut-tp").value);
+    const sl = Number(document.getElementById("fut-sl").value);
+    if (tp > 0) payload.tp = tp;
+    if (sl > 0) payload.sl = sl;
+    sendAction(payload);
+  });
+  bindSend("fut-pos", () => sendAction({ action: "fut_pos" }));
+  bindSend("fut-ords", () => sendAction({ action: "fut_ord" }));
+  bindSend("fut-close", () => sendAction({ action: "fut_close", contract: futSym() }));
+  bindSend("fut-cancel", () => {
+    const oid = String(document.getElementById("fut-cancel-id").value || "").trim();
+    if (!oid) { alert("أدخل رقم الأمر."); return; }
+    sendAction({ action: "fut_cancel", order_id: oid });
+  });
+
+  let ptrY = 0, ptrArmed = false;
+  document.addEventListener("touchstart", ev => {
+    if (window.scrollY <= 0 && ev.touches && ev.touches[0]) { ptrY = ev.touches[0].clientY; ptrArmed = true; }
+    else ptrArmed = false;
+  }, { passive: true });
+  document.addEventListener("touchmove", ev => {
+    if (!ptrArmed || !ev.touches || !ev.touches[0]) return;
+    if (ev.touches[0].clientY - ptrY > 70) document.getElementById("ptr").classList.remove("hidden");
+  }, { passive: true });
+  document.addEventListener("touchend", () => {
+    if (!ptrArmed) return;
+    ptrArmed = false;
+    const el = document.getElementById("ptr");
+    if (el && !el.classList.contains("hidden")) {
+      haptic("light");
+      el.textContent = "جارٍ التحديث…";
+      try { loadTickers(); loadCandles(); loadBook(); loadTrades(); loadFutures(); refreshSpotMin(); } catch (e) {}
+      setTimeout(() => { el.classList.add("hidden"); }, 900);
+    }
+  });
+
   initDepositStore();
   loadTickers(); loadCandles(); loadBook(); loadTrades();
   setInterval(loadTickers, 12000);
