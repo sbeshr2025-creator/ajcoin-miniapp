@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v12-auto -->
+  <!-- ajcoin-miniapp v13-auto -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -45,11 +45,14 @@
       background: #3b82f622; border: 1px solid #3b82f655; color: #dbeafe; font-size: 13px; line-height: 1.55; }
     .banner.warn { background: #f5c15c18; border-color: #f5c15c55; color: var(--warn); }
     .hidden { display: none !important; }
-    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(9, 1fr);
+    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: flex; overflow-x: auto;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
       background: color-mix(in srgb, var(--card) 92%, #000); border-top: 1px solid var(--line);
       padding: 4px 2px calc(6px + env(safe-area-inset-bottom)); z-index: 20; backdrop-filter: blur(10px); }
-    .tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 8px;
-      padding: 6px 0; border-radius: 10px; min-height: 48px; transition: background .15s, color .15s; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 10px;
+      padding: 6px 8px; border-radius: 10px; min-height: 48px; min-width: 58px; flex: 1 0 auto;
+      transition: background .15s, color .15s; }
     .tabs button.on { color: var(--text); background: #ffffff10; font-weight: 700; }
     .tabs button span { display: block; font-size: 16px; line-height: 1.1; }
     .panel { padding: 8px 16px 20px; }
@@ -488,14 +491,18 @@
 
 
   <section class="panel hidden" id="tab-auto">
-    <p class="hint soft">يراقب العملات الرائجة القابلة للارتفاع كل 5 دقائق، ويشتري فورياً بـ 3 USDT عند تجاوز العتبة، ثم يبيع تلقائياً (جني ربح / وقف خسارة / وقف متحرك / انعكاس الإشارة). متوقف افتراضياً. التشغيل يحتاج تأكيد ✅ مرة واحدة في المحادثة. العقود غير مشمولة.<br>⚠️ ليست نصيحة استثمارية.</p>
+    <p class="hint soft">يراقب العملات الرائجة كل 5 دقائق، ويشتري فورياً بـ 3 USDT عند تجاوز العتبة، ثم يبيع تلقائياً (جني ربح جزئي ثم كامل / وقف خسارة / وقف متحرك / انعكاس). متوقف حتى تؤكد التشغيل بـ ✅ مرة واحدة في المحادثة. العقود غير مشمولة.<br>الوضع الافتراضي: <b>محاكاة</b> برصيد افتراضي، دون أوامر حقيقية حتى يتوفر الرصيد أو تختار التداول الحقيقي.<br>⚠️ ليست نصيحة استثمارية.</p>
     <div class="actions">
-      <button id="auto-on" style="background:var(--buy)">▶️ تشغيل (بتأكيد)</button>
-      <button id="auto-stop" style="background:var(--sell)">⛔ إيقاف فوري</button>
+      <button id="auto-on" style="background:var(--buy)" aria-label="تشغيل التداول التلقائي بعد التأكيد">▶️ تشغيل (بتأكيد)</button>
+      <button id="auto-stop" style="background:var(--sell)" aria-label="إيقاف فوري للشراء التلقائي">⛔ إيقاف فوري</button>
     </div>
     <div class="actions" style="margin-top:8px">
       <button id="auto-status">📊 الحالة والصفقات</button>
       <button id="auto-sellall">بيع كل الصفقات التلقائية</button>
+    </div>
+    <div class="actions" style="margin-top:8px">
+      <button id="auto-paper-on" style="background:var(--btn)">🧪 تفعيل المحاكاة</button>
+      <button id="auto-paper-off">تحويل للتداول الحقيقي</button>
     </div>
     <h3 style="margin:16px 0 8px;font-size:15px">الإعدادات</h3>
     <div class="auto-set">
@@ -519,11 +526,11 @@
     <h3 style="margin:16px 0 8px;font-size:15px">العملات الرائجة (معاينة)</h3>
     <p class="note">عرض حي من بيانات Gate العامة (حجم 24 ساعة ≥ 500 ألف USDT، بدون العملات المستقرة أو الرموز ذات الرافعة). القائمة الدقيقة بالدرجات تصل من البوت.</p>
     <div class="actions"><button id="auto-scan">طلب القائمة الدقيقة من البوت</button></div>
-    <div id="auto-trend" class="mkt" style="margin-top:8px"></div>
-    <p class="note">حد الشراء 3 USDT، والحد اليومي المشترك 20 USDT، بحد 3 مراكز مفتوحة، وإيقاف الشراء عند خسارة يومية −3 USDT. السحب غير متاح من هذه الصفحة.</p>
+    <div id="auto-trend" class="mkt" style="margin-top:8px" aria-live="polite">جارٍ تحميل المعاينة…</div>
+    <p class="note">حد الشراء 3 USDT، والحد اليومي المشترك 20 USDT، بحد 3 مراكز مفتوحة، وإيقاف الشراء عند خسارة يومية −3 USDT. يُستبعد الصعود الحاد فوق +30% خلال 24 ساعة، ويُوقف الشراء إن هبط بيتكوين أكثر من 1.5% في ساعة. السحب غير متاح من هذه الصفحة.</p>
   </section>
 
-  <nav class="tabs" id="tabs">
+  <nav class="tabs" id="tabs" role="tablist" aria-label="أقسام المحطة">
     <button data-tab="markets" class="on"><span>📉</span>الأسواق</button>
     <button data-tab="trade"><span>📈</span>تداول</button>
     <button data-tab="futures"><span>📜</span>عقود</button>
@@ -537,6 +544,21 @@
 
 <script>
 (function () {
+
+  window.__AJ_ERRS = [];
+  window.addEventListener("error", ev => { try { window.__AJ_ERRS.push(String((ev && ev.message) || ev)); } catch (e) {} });
+  window.addEventListener("unhandledrejection", ev => { try { window.__AJ_ERRS.push(String((ev && ev.reason) || ev)); } catch (e) {} });
+  if (/(?:\?|&)debug=1(?:&|$)/.test(location.search)) {
+    setTimeout(() => {
+      try {
+        var pre = document.createElement("pre");
+        pre.id = "aj-debug";
+        pre.textContent = JSON.stringify({ ready: window.__AJ_READY, tab: window.__AJ_TAB, errs: window.__AJ_ERRS || [], autoTab: !!document.getElementById("tab-auto") });
+        document.body.appendChild(pre);
+      } catch (e) {}
+    }, 2200);
+  }
+
   const PAIRS = [
     { symbol: "BTC", pair: "BTC_USDT", trade: true },
     { symbol: "ETH", pair: "ETH_USDT", trade: true },
@@ -1147,9 +1169,18 @@
   }
   function showTab(name) {
     ["markets", "trade", "futures", "new", "smart", "auto", "orders", "portfolio", "alerts"].forEach(t => {
-      document.getElementById("tab-" + t).classList.toggle("hidden", t !== name);
+      const panel = document.getElementById("tab-" + t);
+      if (panel) {
+        panel.classList.toggle("hidden", t !== name);
+        panel.setAttribute("role", "tabpanel");
+        panel.setAttribute("aria-hidden", t !== name ? "true" : "false");
+      }
       const b = document.querySelector('#tabs [data-tab="' + t + '"]');
-      if (b) b.classList.toggle("on", t === name);
+      if (b) {
+        b.classList.toggle("on", t === name);
+        b.setAttribute("role", "tab");
+        b.setAttribute("aria-selected", t === name ? "true" : "false");
+      }
     });
     if (name === "trade") {
       setTimeout(() => { if (chart) chart.timeScale().fitContent(); if (rsiChart) rsiChart.timeScale().fitContent(); }, 40);
@@ -1163,7 +1194,17 @@
     const btn = ev.target.closest("[data-tab]");
     if (btn) { haptic("sel"); showTab(btn.dataset.tab); }
   });
-  showTab(walletMode ? "trade" : "markets");
+  (function openRequestedTab() {
+    var start = walletMode ? "trade" : "markets";
+    try {
+      var q = new URLSearchParams(location.search);
+      var h = new URLSearchParams((location.hash || "").replace(/^#/, "").replace(/^tgWebAppData.*/, ""));
+      var req = (q.get("tab") || h.get("tab") || "").toLowerCase();
+      if (["markets","trade","futures","new","smart","auto","orders","portfolio","alerts"].indexOf(req) >= 0) start = req;
+    } catch (e) {}
+    showTab(start);
+    try { window.__AJ_READY = true; window.__AJ_TAB = start; } catch (e) {}
+  })();
   try {
     if (tg && tg.BackButton) tg.BackButton.onClick(() => { haptic("light"); showTab("markets"); });
     if (tg && tg.MainButton) tg.MainButton.onClick(() => {
@@ -1373,6 +1414,7 @@
     else if (a === "auto_status") out = "ast";
     else if (a === "auto_scan") out = "asc";
     else if (a === "auto_sellall") out = "axa";
+    else if (a === "auto_paper") out = payload.enabled ? "apm_on" : "apm_off";
     else if (a === "auto_settings") {
       function n(v) {
         v = Number(v);
@@ -1404,8 +1446,16 @@
       return false;
     }
   }
+  function launchedFromKeyboard() {
+    try {
+      var q = new URLSearchParams(location.search);
+      if (q.get("src") === "kb") return true;
+    } catch (e) {}
+    return false;
+  }
   function sendAction(payload) {
-    if (tg && typeof tg.sendData === "function") {
+    // sendData يعمل فقط إذا فُتح التطبيق من زر لوحة الكتابة. زر القائمة/الروابط الأخرى تتجاهله دون خطأ.
+    if (launchedFromKeyboard() && tg && typeof tg.sendData === "function") {
       try {
         try { if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success"); } catch (e) {}
         tg.sendData(JSON.stringify(payload));
@@ -1413,6 +1463,7 @@
         return true;
       } catch (e) {}
     }
+    try { toast("سافتح المحادثة لإكمال الطلب", "ok"); } catch (e) {}
     return sendViaStartLink(payload);
   }
   function bindSend(id, fn) {
@@ -2263,7 +2314,8 @@
       if (r.ask > 0 && r.bid > 0 && r.last > 0 && ((r.ask - r.bid) / r.last * 10000) > 30) return false;
       return true;
     }).sort((a, b) => (b.change || 0) - (a.change || 0)).slice(0, 15);
-    if (!rows.length) { box.innerHTML = '<p class="note">جارٍ تحميل الأسواق أو لا توجد عملات مطابقة حالياً.</p>'; return; }
+    if (!allSpot || !allSpot.length) { box.innerHTML = '<p class="note">جارٍ تحميل قائمة الأسواق…</p>'; return; }
+    if (!rows.length) { box.innerHTML = '<p class="note">لا توجد عملات مطابقة لشروط المعاينة حالياً. يمكنك طلب القائمة الدقيقة من البوت.</p>'; return; }
     box.innerHTML = rows.map(r => {
       const up = (r.change || 0) >= 0;
       const chg = (up ? "+" : "") + Number(r.change || 0).toFixed(2) + "%";
@@ -2294,6 +2346,8 @@
   bindSend("auto-sellall", () => sendAction({ action: "auto_sellall" }));
   bindSend("auto-scan", () => sendAction({ action: "auto_scan" }));
   bindSend("auto-save", () => sendAction(autoSettingsPayload()));
+  bindSend("auto-paper-on", () => sendAction({ action: "auto_paper", enabled: true }));
+  bindSend("auto-paper-off", () => sendAction({ action: "auto_paper", enabled: false }));
 
 
   initDepositStore();
@@ -2303,7 +2357,12 @@
   setInterval(loadTrades, 5000);
   setInterval(loadCandles, 20000);
   try {
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js?v=13").then(function (reg) {
+        try { reg.update(); } catch (e) {}
+        if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
+      }).catch(function () {});
+    }
   } catch (e) {}
 })();
 </script>
