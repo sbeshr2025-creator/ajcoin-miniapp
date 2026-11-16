@@ -2,578 +2,737 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f14" />
-  <meta name="description" content="لوحة أسعار ومحفظة Ajcoin" />
-  <title>المحفظة والتداول</title>
-  <!-- ajcoin-miniapp v2-wallet -->
+  <meta name="description" content="محطة تداول Ajcoin — أسعار، شارت، أوامر وحدود آمنة عبر تيليجرام" />
+  <title>محطة التداول · Ajcoin</title>
+  <!-- ajcoin-miniapp v3-terminal -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <style>
     :root {
-      --bg: #0b0f14;
-      --card: #141b24;
-      --card-2: #1a2330;
-      --line: #243044;
-      --text: #e8eef6;
-      --muted: #8b98a8;
-      --up: #26c281;
-      --down: #ef5350;
-      --accent: #f5c542;
-      --hint: #8b98a8;
-      --btn: #1e6eff;
+      --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
+      --muted: #8b9aab; --hint: #6d7d8f; --line: #243041; --btn: #3b82f6;
+      --up: #16c784; --down: #ea3943; --warn: #f5c15c; --buy: #0d9488; --sell: #e11d48;
+      --radius: 14px;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: "IBM Plex Sans Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
-      min-height: 100%;
-    }
-    body { padding: 14px 14px 28px; }
-    header { margin-bottom: 12px; }
-    h1 { font-size: 1.2rem; font-weight: 700; }
-    .sub { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
-    .tabs {
-      display: flex; gap: 6px; background: var(--card);
-      border: 1px solid var(--line); border-radius: 14px; padding: 4px; margin-bottom: 14px;
-    }
-    .tabs button {
-      flex: 1; border: 0; background: transparent; color: var(--muted);
-      font: inherit; font-weight: 700; font-size: 0.9rem;
-      padding: 9px 6px; border-radius: 10px; cursor: pointer;
-    }
-    .tabs button.on { background: var(--card-2); color: var(--text); }
-    .live {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: var(--card); border: 1px solid var(--line);
-      border-radius: 999px; padding: 6px 10px; font-size: 0.75rem; color: var(--muted);
-    }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 8px var(--up); }
-    .dot.err { background: var(--down); box-shadow: 0 0 8px var(--down); }
-    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-    @media (min-width: 560px) { .grid { grid-template-columns: 1fr 1fr; } }
-    .card {
-      background: linear-gradient(180deg, var(--card-2), var(--card));
-      border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 10px;
-    }
-    .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .sym { font-weight: 700; font-size: 1rem; }
-    .pair { color: var(--muted); font-size: 0.72rem; font-weight: 500; }
-    .chg {
-      font-size: 0.78rem; font-weight: 700; border-radius: 999px;
-      padding: 3px 8px; font-variant-numeric: tabular-nums;
-    }
-    .chg.up { color: var(--up); background: rgba(38,194,129,.12); }
-    .chg.down { color: var(--down); background: rgba(239,83,80,.12); }
-    .price { font-size: 1.28rem; font-weight: 700; margin-top: 8px; font-variant-numeric: tabular-nums; }
-    canvas { width: 100%; height: 44px; margin-top: 8px; display: block; }
-    .hint { color: var(--hint); font-size: 0.75rem; text-align: center; margin-top: 16px; line-height: 1.6; }
-    .errbox { color: var(--down); text-align: center; padding: 24px 8px; }
-    .banner {
-      background: rgba(245,197,66,.1); border: 1px solid rgba(245,197,66,.35);
-      color: var(--text); border-radius: 12px; padding: 10px 12px;
-      font-size: 0.82rem; line-height: 1.6; margin-bottom: 12px;
-    }
-    .note {
-      background: var(--card); border: 1px solid var(--line);
-      border-radius: 12px; padding: 10px 12px; font-size: 0.8rem;
-      line-height: 1.65; color: var(--muted); margin-top: 12px;
-    }
-    label { display: block; font-size: 0.8rem; color: var(--muted); margin: 10px 0 6px; }
-    select, input[type="number"] {
-      width: 100%; background: var(--bg); color: var(--text);
-      border: 1px solid var(--line); border-radius: 12px;
-      padding: 10px 12px; font: inherit; font-size: 1rem;
-    }
-    .seg { display: flex; gap: 6px; }
-    .seg button {
-      flex: 1; border: 1px solid var(--line); background: var(--card);
-      color: var(--text); font: inherit; font-weight: 700;
-      padding: 10px; border-radius: 12px; cursor: pointer;
-    }
-    .seg button.on.buy { background: rgba(38,194,129,.18); border-color: var(--up); color: var(--up); }
-    .seg button.on.sell { background: rgba(239,83,80,.18); border-color: var(--down); color: var(--down); }
-    .seg button.on { background: var(--card-2); }
-    .primary {
-      width: 100%; margin-top: 14px; border: 0; border-radius: 14px;
-      background: var(--btn); color: #fff; font: inherit; font-weight: 700;
-      font-size: 1rem; padding: 12px; cursor: pointer;
-    }
-    .primary:disabled { opacity: .45; cursor: not-allowed; }
-    .primary.sellbtn { background: #c62828; }
-    .estimate {
-      margin-top: 10px; padding: 10px 12px; border-radius: 12px;
-      background: var(--card); border: 1px solid var(--line);
-      font-size: 0.88rem; line-height: 1.7;
-    }
-    .estimate b { font-variant-numeric: tabular-nums; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+    body { padding-bottom: 72px; min-height: 100dvh; }
+    header { padding: 14px 16px 8px; position: sticky; top: 0; z-index: 8;
+      background: linear-gradient(180deg, var(--bg) 70%, transparent); }
+    .title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    h1 { margin: 0; font-size: 18px; font-weight: 750; }
+    .live { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--up); box-shadow: 0 0 0 3px #16c78433; }
+    .dot.off { background: var(--down); box-shadow: none; }
+    .pair-head { margin-top: 8px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .pair-head .px { font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; direction: ltr; }
+    .chg { font-size: 13px; font-weight: 700; }
+    .chg.up { color: var(--up); } .chg.down { color: var(--down); }
+    .banner { margin: 8px 16px 0; padding: 10px 12px; border-radius: 12px;
+      background: #3b82f622; border: 1px solid #3b82f655; color: #dbeafe; font-size: 13px; line-height: 1.55; }
+    .banner.warn { background: #f5c15c18; border-color: #f5c15c55; color: var(--warn); }
     .hidden { display: none !important; }
-    .headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(5, 1fr);
+      background: color-mix(in srgb, var(--card) 92%, #000); border-top: 1px solid var(--line);
+      padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); z-index: 20; }
+    .tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 11px;
+      padding: 6px 2px; border-radius: 10px; }
+    .tabs button.on { color: var(--text); background: #ffffff10; font-weight: 700; }
+    .tabs button span { display: block; font-size: 16px; line-height: 1.1; }
+    .panel { padding: 8px 16px 20px; }
+    .search { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--card); color: var(--text); font: inherit; outline: none; }
+    .mkt { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .row { display: grid; grid-template-columns: 28px 1fr auto auto; gap: 8px; align-items: center;
+      background: var(--card); border-radius: 12px; padding: 10px 10px; border: 1px solid transparent; }
+    .row:active, .row.on { border-color: #3b82f688; }
+    .star { background: none; border: 0; color: var(--hint); font-size: 16px; padding: 0; }
+    .star.on { color: var(--warn); }
+    .sym { font-weight: 750; } .sym small { color: var(--muted); font-weight: 500; }
+    .vol { font-size: 11px; color: var(--muted); }
+    .last, .chgc { text-align: left; direction: ltr; font-variant-numeric: tabular-nums; }
+    .chgc { font-size: 13px; font-weight: 700; min-width: 68px; }
+    .tf { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; }
+    .chip, .seg button { border: 1px solid var(--line); background: var(--card); color: var(--text);
+      border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12px; }
+    .chip.on, .seg button.on { background: var(--btn); border-color: var(--btn); color: #fff; font-weight: 700; }
+    .inds { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .inds label { font-size: 12px; color: var(--muted); display: flex; gap: 4px; align-items: center;
+      background: var(--card); padding: 5px 9px; border-radius: 999px; border: 1px solid var(--line); }
+    #chart-wrap, #rsi-wrap { direction: ltr; width: 100%; background: var(--card); border-radius: var(--radius); overflow: hidden; }
+    #chart { height: 260px; width: 100%; } #rsi-wrap { margin-top: 6px; } #rsi { height: 96px; width: 100%; }
+    .books { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    @media (max-width: 420px) { .books { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border-radius: var(--radius); padding: 10px; }
+    .card h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 650; }
+    .ob, .trd { font-size: 11px; font-variant-numeric: tabular-nums; direction: ltr; text-align: left; }
+    .ob .l, .trd .l { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; position: relative; padding: 2px 4px; }
+    .ob .bar { position: absolute; top: 0; bottom: 0; opacity: .18; }
+    .ob .ask .bar { right: 0; background: var(--down); } .ob .bid .bar { right: 0; background: var(--up); }
+    .ask { color: var(--down); } .bid { color: var(--up); }
+    .form { margin-top: 12px; background: var(--card); border-radius: var(--radius); padding: 12px; }
+    .seg { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    .seg.sides button { flex: 1; }
+    .seg.sides .buy.on { background: var(--buy); border-color: var(--buy); }
+    .seg.sides .sell.on { background: var(--sell); border-color: var(--sell); }
+    label.f { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+    input, select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+      background: var(--bg); color: var(--text); font: inherit; }
+    .pct { display: flex; gap: 6px; margin: 8px 0; }
+    .pct button { flex: 1; }
+    .est { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 8px 0; min-height: 3em; }
+    .go { width: 100%; border: 0; border-radius: 12px; padding: 12px; font: inherit; font-weight: 750;
+      font-size: 15px; color: #fff; background: var(--buy); margin-top: 6px; }
+    .go.sellbtn { background: var(--sell); }
+    .go:disabled { opacity: .45; }
+    .note { font-size: 12px; color: var(--hint); line-height: 1.6; margin-top: 10px; }
+    .actions button { width: 100%; margin: 0 0 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--card); color: var(--text); font: inherit; font-weight: 650; }
+    .actions button.danger { border-color: #ea394355; color: #fca5a5; }
+    .hint { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 12px; }
+    .okline { font-size: 13px; color: var(--up); }
   </style>
 </head>
 <body>
-  <header class="headrow">
-    <div>
-      <h1>المحفظة والتداول</h1>
-      <div class="sub" id="subtitle">أسعار حية · تداول بعد تأكيدك في الدردشة</div>
+  <header>
+    <div class="title">
+      <h1>محطة التداول</h1>
+      <div class="live"><span class="dot" id="dot"></span><span id="src">Gate.io</span></div>
     </div>
-    <div class="live"><span class="dot" id="dot"></span><span id="status">جاري التحميل</span></div>
+    <div class="pair-head">
+      <div id="head-pair">BTC/USDT</div>
+      <div class="px" id="head-px">—</div>
+      <div class="chg" id="head-chg"></div>
+    </div>
   </header>
+  <div class="banner hidden" id="send-hint">افتح هذه الصفحة من زر <b>📱 المحفظة والتداول</b> أسفل لوحة الكتابة حتى يصل طلبك إلى البوت. النتائج تظهر كرسائل في المحادثة.</div>
+
+  <section class="panel" id="tab-markets">
+    <input class="search" id="search" type="search" placeholder="ابحث عن عملة…" inputmode="search" />
+    <div class="mkt" id="mkt"></div>
+  </section>
+
+  <section class="panel hidden" id="tab-trade">
+    <div class="tf" id="tf"></div>
+    <div id="chart-wrap"><div id="chart"></div></div>
+    <div id="rsi-wrap" class="hidden"><div id="rsi"></div></div>
+    <div class="inds">
+      <label><input type="checkbox" id="ind-ma20" checked /> MA20</label>
+      <label><input type="checkbox" id="ind-ma50" checked /> MA50</label>
+      <label><input type="checkbox" id="ind-bb" /> Bollinger</label>
+      <label><input type="checkbox" id="ind-rsi" /> RSI</label>
+      <label><input type="checkbox" id="ind-vol" checked /> الحجم</label>
+    </div>
+    <div class="books">
+      <div class="card">
+        <h3>دفتر الأوامر</h3>
+        <div class="ob" id="ob">جاري التحميل…</div>
+      </div>
+      <div class="card">
+        <h3>آخر الصفقات</h3>
+        <div class="trd" id="trd">جاري التحميل…</div>
+      </div>
+    </div>
+    <div class="form">
+      <div class="seg" id="otype-seg">
+        <button data-ot="market" class="on">سوق</button>
+        <button data-ot="limit">محدود</button>
+        <button data-ot="stop_limit">وقف محدود</button>
+        <button data-ot="take_profit">جني ربح</button>
+        <button data-ot="stop_loss">وقف خسارة</button>
+      </div>
+      <div class="seg sides" id="side-seg">
+        <button class="buy on" data-side="buy">شراء</button>
+        <button class="sell" data-side="sell">بيع</button>
+      </div>
+      <div id="px-box" class="hidden">
+        <label class="f" for="limit-px">سعر الأمر (USDT)</label>
+        <input id="limit-px" type="number" inputmode="decimal" step="any" />
+      </div>
+      <div id="trig-box" class="hidden">
+        <label class="f" for="trig-px">سعر التفعيل</label>
+        <input id="trig-px" type="number" inputmode="decimal" step="any" />
+      </div>
+      <div class="seg" id="unit-seg">
+        <button data-unit="usdt" class="on">بالـ USDT</button>
+        <button data-unit="coin">بالعملة</button>
+      </div>
+      <label class="f" for="amt">الكمية</label>
+      <input id="amt" type="number" inputmode="decimal" step="any" value="5" />
+      <label class="f" for="amt-max">حد أقصى مرجعي لأزرار النسبة (ليس رصيدك)</label>
+      <input id="amt-max" type="number" inputmode="decimal" step="any" value="5" />
+      <div class="pct" id="pct">
+        <button data-p="25">25%</button>
+        <button data-p="50">50%</button>
+        <button data-p="75">75%</button>
+        <button data-p="100">100%</button>
+      </div>
+      <div class="est" id="est">جاري تقدير الصفقة…</div>
+      <button class="go" id="trade-btn">إرسال أمر الشراء للتأكيد</button>
+      <p class="note">كل أمر يُرسل إلى البوت ويحتاج موافقتك بـ ✅ خلال 60 ثانية قبل التنفيذ. الحد 5 USDT للصفقة و20 في اليوم. السحب غير متاح هنا — استخدم تطبيق Gate.io.</p>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="tab-orders">
+    <p class="hint">الصفحة لا تستقبل النتائج مباشرة. اضغط الزر، ثم اقرأ القائمة في محادثة البوت. إلغاء أي أمر يحتاج تأكيد ✅ في المحادثة.</p>
+    <div class="actions">
+      <button id="btn-open">عرض الأوامر المفتوحة</button>
+      <button id="btn-hist">سجل الأوامر</button>
+      <button id="btn-fills">صفقاتي المنفذة</button>
+      <button id="btn-cancel-all" class="danger">طلب إلغاء كل الأوامر المفتوحة</button>
+    </div>
+    <label class="f" for="cancel-id">إلغاء أمر برقمِه (اختياري)</label>
+    <input id="cancel-id" placeholder="رقم الأمر من رسالة البوت" />
+    <div class="seg" style="margin-top:8px">
+      <button class="on" data-ckind="spot" id="ck-spot">أمر فوري</button>
+      <button data-ckind="price" id="ck-price">أمر مشروط</button>
+    </div>
+    <button class="go sellbtn" id="btn-cancel-one" style="margin-top:10px">طلب إلغاء هذا الأمر</button>
+  </section>
+
+  <section class="panel hidden" id="tab-portfolio">
+    <p class="hint">الرصيد والأرباح يُعرضان في رسالة من البوت بعد الطلب. لا تُخزَّن أرصدة أو عناوين في هذه الصفحة.</p>
+    <div class="actions">
+      <button id="btn-port">عرض رصيدي والأرباح</button>
+      <button id="btn-bal">عرض رصيدي فقط</button>
+    </div>
+    <div class="card" style="margin-top:8px">
+      <h3>عنوان الإيداع</h3>
+      <label class="f" for="dep-coin">العملة</label>
+      <select id="dep-coin"></select>
+      <label class="f" for="dep-chain">الشبكة</label>
+      <select id="dep-chain"></select>
+      <button class="go" id="dep-btn" style="background:var(--btn)">طلب عنوان الإيداع</button>
+      <p class="note">⚠️ السحب غير متاح من البوت أو هذه الصفحة. إذا أردت سحب رصيدك فاستخدم تطبيق Gate.io مباشرة.</p>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="tab-alerts">
+    <p class="hint">يُحفظ التنبيه في البوت ويصلك إشعار في المحادثة عند عبور السعر.</p>
+    <label class="f" for="al-coin">العملة</label>
+    <select id="al-coin"></select>
+    <label class="f" for="al-px">السعر المستهدف (USDT)</label>
+    <input id="al-px" type="number" inputmode="decimal" step="any" />
+    <button class="go" id="al-btn" style="background:var(--btn);margin-top:12px">إنشاء تنبيه سعري</button>
+    <div class="actions" style="margin-top:12px">
+      <button id="al-list">عرض تنبيهاتي في المحادثة</button>
+    </div>
+  </section>
 
   <nav class="tabs" id="tabs">
-    <button type="button" data-tab="prices" class="on">الأسعار</button>
-    <button type="button" data-tab="trade">تداول</button>
-    <button type="button" data-tab="wallet">المحفظة</button>
+    <button data-tab="markets" class="on"><span>📉</span>الأسواق</button>
+    <button data-tab="trade"><span>📈</span>تداول</button>
+    <button data-tab="orders"><span>🧾</span>أوامري</button>
+    <button data-tab="portfolio"><span>👛</span>المحفظة</button>
+    <button data-tab="alerts"><span>🔔</span>تنبيهات</button>
   </nav>
 
-  <section id="tab-prices">
-    <div class="grid" id="grid"></div>
-    <p class="hint">الأرقام للعرض فقط وليست نصيحة استثمارية. المصدر: <span id="src">—</span> · آخر تحديث: <span id="when">—</span></p>
-  </section>
+<script>
+(function () {
+  const PAIRS = [
+    { symbol: "BTC", pair: "BTC_USDT", trade: true },
+    { symbol: "ETH", pair: "ETH_USDT", trade: true },
+    { symbol: "SOL", pair: "SOL_USDT", trade: true },
+    { symbol: "BNB", pair: "BNB_USDT", trade: true },
+    { symbol: "XRP", pair: "XRP_USDT", trade: true },
+    { symbol: "TON", pair: "TON_USDT", trade: true },
+    { symbol: "DOGE", pair: "DOGE_USDT", trade: true },
+    { symbol: "ADA", pair: "ADA_USDT" },
+    { symbol: "AVAX", pair: "AVAX_USDT" },
+    { symbol: "DOT", pair: "DOT_USDT" },
+    { symbol: "LINK", pair: "LINK_USDT" },
+    { symbol: "LTC", pair: "LTC_USDT" },
+    { symbol: "TRX", pair: "TRX_USDT" },
+    { symbol: "ATOM", pair: "ATOM_USDT" },
+    { symbol: "UNI", pair: "UNI_USDT" },
+    { symbol: "NEAR", pair: "NEAR_USDT" },
+    { symbol: "APT", pair: "APT_USDT" },
+    { symbol: "SUI", pair: "SUI_USDT" }
+  ];
+  const TRADEABLE = new Set(PAIRS.filter(p => p.trade).map(p => p.pair));
+  const PAIR = Object.fromEntries(PAIRS.map(p => [p.pair, p]));
+  const TFS = [
+    { id: "1m", label: "1د" }, { id: "5m", label: "5د" }, { id: "15m", label: "15د" },
+    { id: "1h", label: "1س" }, { id: "4h", label: "4س" }, { id: "1d", label: "1ي" }
+  ];
+  const CHAINS = {
+    USDT: [
+      { id: "TRX", label: "TRC20 (Tron)" }, { id: "ETH", label: "ERC20 (Ethereum)" },
+      { id: "BSC", label: "BEP20 (BSC)" }, { id: "SOL", label: "Solana" },
+      { id: "TON", label: "TON" }, { id: "MATIC", label: "Polygon" },
+      { id: "ARBEVM", label: "Arbitrum" }, { id: "OPETH", label: "Optimism" }
+    ],
+    BTC: [{ id: "BTC", label: "Bitcoin" }, { id: "BSC", label: "BEP20 (BSC)" }],
+    ETH: [{ id: "ETH", label: "ERC20 (Ethereum)" }, { id: "ARBEVM", label: "Arbitrum" }, { id: "OPETH", label: "Optimism" }, { id: "BSC", label: "BEP20 (BSC)" }],
+    SOL: [{ id: "SOL", label: "Solana" }],
+    BNB: [{ id: "BSC", label: "BEP20 (BSC)" }, { id: "OPBNB", label: "opBNB" }],
+    XRP: [{ id: "XRP", label: "XRP Ledger" }],
+    TON: [{ id: "TON", label: "TON" }],
+    DOGE: [{ id: "DOGE", label: "Dogecoin" }]
+  };
+  const DEPOSIT_COINS = ["USDT", "BTC", "ETH", "SOL", "BNB", "XRP", "TON", "DOGE"];
+  const FAV_KEY = "ajcoin.favorites";
+  const GATE = "https://api.gateio.ws/api/v4";
+  const FEE = 0.002;
 
-  <section id="tab-trade" class="hidden">
-    <div class="banner hidden" id="trade-hint">افتح هذه الصفحة من زر <b>📱 المحفظة والتداول</b> أسفل لوحة الكتابة حتى يصل طلبك إلى البوت.</div>
-    <div class="card">
-      <label for="coin">العملة</label>
-      <select id="coin"></select>
-      <label>نوع الصفقة</label>
-      <div class="seg" id="side-seg">
-        <button type="button" class="buy on" data-side="buy">شراء</button>
-        <button type="button" class="sell" data-side="sell">بيع</button>
-      </div>
-      <div id="buy-box">
-        <label for="usdt-amt">المبلغ بالـ USDT</label>
-        <input id="usdt-amt" type="number" min="0.1" step="0.1" value="5" inputmode="decimal" />
-      </div>
-      <div id="sell-box" class="hidden">
-        <label>طريقة البيع</label>
-        <div class="seg" id="sell-mode">
-          <button type="button" class="on" data-mode="qty">كمية العملة</button>
-          <button type="button" data-mode="pct">نسبة من الرصيد</button>
-        </div>
-        <div id="sell-qty-box">
-          <label for="coin-amt">الكمية</label>
-          <input id="coin-amt" type="number" min="0" step="any" inputmode="decimal" placeholder="0.0" />
-        </div>
-        <div id="sell-pct-box" class="hidden">
-          <label>النسبة</label>
-          <div class="seg" id="pct-seg">
-            <button type="button" data-pct="25">25%</button>
-            <button type="button" class="on" data-pct="50">50%</button>
-            <button type="button" data-pct="100">100%</button>
-          </div>
-        </div>
-      </div>
-      <div class="estimate" id="est">جاري جلب السعر…</div>
-      <button type="button" class="primary" id="trade-btn">إرسال طلب الشراء للتأكيد</button>
-      <p class="note">الحد الأقصى 5 USDT للصفقة و20 USDT في اليوم. لن يُنفَّذ أي أمر حتى تضغط ✅ تنفيذ في الدردشة خلال 60 ثانية.</p>
-    </div>
-  </section>
+  const params = new URLSearchParams(location.search);
+  const walletMode = params.get("mode") === "wallet";
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const canSend = !!(walletMode && tg && typeof tg.sendData === "function");
 
-  <section id="tab-wallet" class="hidden">
-    <div class="banner hidden" id="wallet-hint">افتح هذه الصفحة من زر <b>📱 المحفظة والتداول</b> أسفل لوحة الكتابة لعرض الرصيد أو عنوان الإيداع.</div>
-    <div class="card">
-      <p style="font-weight:700;margin-bottom:10px;">الرصيد</p>
-      <button type="button" class="primary" id="bal-btn">عرض رصيدي</button>
-    </div>
-    <div class="card" style="margin-top:10px;">
-      <p style="font-weight:700;">عنوان الإيداع</p>
-      <label for="dep-coin">العملة</label>
-      <select id="dep-coin"></select>
-      <label for="dep-chain">الشبكة</label>
-      <select id="dep-chain"></select>
-      <button type="button" class="primary" id="dep-btn">عنوان الإيداع</button>
-      <p class="note">أرسل فقط نفس العملة وعلى نفس الشبكة التي يطلبها البوت. أي خطأ في الشبكة قد يضيّع التحويل.</p>
-    </div>
-    <p class="note">⚠️ السحب غير متاح من البوت أو هذه الصفحة. إذا أردت سحب رصيدك فاستخدم تطبيق Gate.io مباشرة.</p>
-  </section>
+  if (tg) {
+    try {
+      tg.ready(); tg.expand();
+      const p = tg.themeParams || {};
+      const root = document.documentElement;
+      if (p.bg_color) root.style.setProperty("--bg", p.bg_color);
+      if (p.secondary_bg_color) {
+        root.style.setProperty("--card", p.secondary_bg_color);
+        root.style.setProperty("--card-2", p.secondary_bg_color);
+      }
+      if (p.text_color) root.style.setProperty("--text", p.text_color);
+      if (p.hint_color) {
+        root.style.setProperty("--muted", p.hint_color);
+        root.style.setProperty("--hint", p.hint_color);
+        root.style.setProperty("--line", p.hint_color + "44");
+      }
+      if (p.button_color) root.style.setProperty("--btn", p.button_color);
+      const bg = p.bg_color || "#0b0f14";
+      try { tg.setHeaderColor(bg); } catch (e) {}
+      try { tg.setBackgroundColor(bg); } catch (e) {}
+      document.querySelector('meta[name="theme-color"]').setAttribute("content", bg);
+    } catch (e) {}
+  }
+  if (!canSend) document.getElementById("send-hint").classList.remove("hidden");
 
-  <script>
-    const COINS = [
-      { symbol: "BTC", pair: "BTC_USDT", bn: "BTCUSDT", cg: "bitcoin" },
-      { symbol: "ETH", pair: "ETH_USDT", bn: "ETHUSDT", cg: "ethereum" },
-      { symbol: "SOL", pair: "SOL_USDT", bn: "SOLUSDT", cg: "solana" },
-      { symbol: "BNB", pair: "BNB_USDT", bn: "BNBUSDT", cg: "binancecoin" },
-      { symbol: "XRP", pair: "XRP_USDT", bn: "XRPUSDT", cg: "ripple" },
-      { symbol: "TON", pair: "TON_USDT", bn: "TONUSDT", cg: "the-open-network" },
-      { symbol: "DOGE", pair: "DOGE_USDT", bn: "DOGEUSDT", cg: "dogecoin" }
-    ];
-    const PAIR = Object.fromEntries(COINS.map(c => [c.pair, c]));
-    const BY_CG = Object.fromEntries(COINS.map(c => [c.cg, c]));
-    const BY_BN = Object.fromEntries(COINS.map(c => [c.bn, c]));
-    const CHAINS = {
-      USDT: [
-        { id: "TRX", label: "TRC20 (Tron)" },
-        { id: "ETH", label: "ERC20 (Ethereum)" },
-        { id: "BSC", label: "BEP20 (BSC)" },
-        { id: "SOL", label: "Solana" },
-        { id: "TON", label: "TON" },
-        { id: "MATIC", label: "Polygon" },
-        { id: "ARBEVM", label: "Arbitrum" },
-        { id: "OPETH", label: "Optimism" }
-      ],
-      BTC: [
-        { id: "BTC", label: "Bitcoin" },
-        { id: "BSC", label: "BEP20 (BSC)" }
-      ],
-      ETH: [
-        { id: "ETH", label: "ERC20 (Ethereum)" },
-        { id: "ARBEVM", label: "Arbitrum" },
-        { id: "OPETH", label: "Optimism" },
-        { id: "BSC", label: "BEP20 (BSC)" }
-      ],
-      SOL: [{ id: "SOL", label: "Solana" }],
-      BNB: [
-        { id: "BSC", label: "BEP20 (BSC)" },
-        { id: "OPBNB", label: "opBNB" }
-      ],
-      XRP: [{ id: "XRP", label: "XRP Ledger" }],
-      TON: [{ id: "TON", label: "TON" }],
-      DOGE: [{ id: "DOGE", label: "Dogecoin" }]
+  let pair = "BTC_USDT";
+  let tf = "1h";
+  let side = "buy";
+  let orderType = "market";
+  let unit = "usdt";
+  let cancelKind = "spot";
+  let tickers = {};
+  let candles = [];
+  let chart, candleSeries, volSeries, ma20s, ma50s, bbU, bbL, bbM, rsiChart, rsiSeries;
+  let favs = [];
+  try { favs = JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); } catch (e) { favs = []; }
+  if (!Array.isArray(favs)) favs = [];
+
+  function fmt(n, d) {
+    n = Number(n);
+    if (!isFinite(n)) return "—";
+    if (d != null) return n.toLocaleString("en-US", { maximumFractionDigits: d });
+    if (Math.abs(n) >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    if (Math.abs(n) >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+    return n.toPrecision(4);
+  }
+  function volFmt(n) {
+    n = Number(n) || 0;
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + "B";
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+    return fmt(n, 2);
+  }
+  function showTab(name) {
+    ["markets", "trade", "orders", "portfolio", "alerts"].forEach(t => {
+      document.getElementById("tab-" + t).classList.toggle("hidden", t !== name);
+      const b = document.querySelector('#tabs [data-tab="' + t + '"]');
+      if (b) b.classList.toggle("on", t === name);
+    });
+    if (name === "trade") {
+      setTimeout(() => { if (chart) chart.timeScale().fitContent(); if (rsiChart) rsiChart.timeScale().fitContent(); }, 40);
+    }
+  }
+  document.getElementById("tabs").addEventListener("click", ev => {
+    const btn = ev.target.closest("[data-tab]");
+    if (btn) showTab(btn.dataset.tab);
+  });
+  showTab(walletMode ? "trade" : "markets");
+
+  TFS.forEach(t => {
+    const b = document.createElement("button");
+    b.className = "chip" + (t.id === tf ? " on" : "");
+    b.textContent = t.label; b.dataset.tf = t.id;
+    document.getElementById("tf").appendChild(b);
+  });
+  document.getElementById("tf").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-tf]");
+    if (!b) return;
+    tf = b.dataset.tf;
+    document.querySelectorAll("#tf .chip").forEach(x => x.classList.toggle("on", x === b));
+    loadCandles();
+  });
+
+  const depCoin = document.getElementById("dep-coin");
+  const depChain = document.getElementById("dep-chain");
+  DEPOSIT_COINS.forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = s; depCoin.appendChild(o); });
+  function fillChains() {
+    const list = CHAINS[depCoin.value] || [];
+    depChain.innerHTML = list.map(c => '<option value="' + c.id + '">' + c.label + "</option>").join("");
+  }
+  depCoin.addEventListener("change", fillChains); fillChains();
+  const alCoin = document.getElementById("al-coin");
+  PAIRS.filter(p => p.trade).forEach(p => {
+    const o = document.createElement("option"); o.value = p.symbol; o.textContent = p.symbol + " / USDT"; alCoin.appendChild(o);
+  });
+
+  function sendAction(payload) {
+    if (!canSend) { alert("افتح من زر المحفظة والتداول في لوحة الكتابة"); return false; }
+    try {
+      tg.sendData(JSON.stringify(payload));
+      try { tg.close(); } catch (e) {}
+      return true;
+    } catch (e) {
+      alert("افتح من زر المحفظة والتداول في لوحة الكتابة");
+      return false;
+    }
+  }
+  function bindSend(id, fn) {
+    document.getElementById(id).addEventListener("click", fn);
+    document.getElementById(id).disabled = !canSend;
+  }
+
+  document.getElementById("otype-seg").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-ot]"); if (!b) return;
+    orderType = b.dataset.ot;
+    document.querySelectorAll("#otype-seg button").forEach(x => x.classList.toggle("on", x === b));
+    const needPx = orderType !== "market";
+    const needTrig = orderType === "stop_limit" || orderType === "take_profit" || orderType === "stop_loss";
+    document.getElementById("px-box").classList.toggle("hidden", !needPx);
+    document.getElementById("trig-box").classList.toggle("hidden", !needTrig);
+    updateEst();
+  });
+  document.getElementById("side-seg").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-side]"); if (!b) return;
+    side = b.dataset.side;
+    document.querySelectorAll("#side-seg button").forEach(x => x.classList.toggle("on", x === b));
+    const tb = document.getElementById("trade-btn");
+    tb.textContent = side === "buy" ? "إرسال أمر الشراء للتأكيد" : "إرسال أمر البيع للتأكيد";
+    tb.classList.toggle("sellbtn", side === "sell");
+    updateEst();
+  });
+  document.getElementById("unit-seg").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-unit]"); if (!b) return;
+    unit = b.dataset.unit;
+    document.querySelectorAll("#unit-seg button").forEach(x => x.classList.toggle("on", x === b));
+    document.getElementById("amt").value = unit === "usdt" ? "5" : "";
+    updateEst();
+  });
+  document.getElementById("pct").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-p]"); if (!b) return;
+    const max = Number(document.getElementById("amt-max").value);
+    if (!(max > 0)) { alert("أدخل حدًا أقصى مرجعيًا ثم استخدم النسبة"); return; }
+    document.getElementById("amt").value = String(+(max * Number(b.dataset.p) / 100).toPrecision(8));
+    updateEst();
+  });
+  ["amt", "amt-max", "limit-px", "trig-px"].forEach(id => {
+    document.getElementById(id).addEventListener("input", updateEst);
+  });
+
+  function livePx() {
+    const t = tickers[pair];
+    return t ? Number(t.last) : null;
+  }
+  function orderPrice() {
+    if (orderType === "market") return livePx();
+    const v = Number(document.getElementById("limit-px").value);
+    return v > 0 ? v : livePx();
+  }
+  function updateEst() {
+    const el = document.getElementById("est");
+    const sym = (PAIR[pair] || {}).symbol || "";
+    const px = orderPrice();
+    const live = livePx();
+    if (!px) { el.textContent = "جاري جلب السعر…"; return; }
+    const amt = Number(document.getElementById("amt").value);
+    let qty = 0, usdt = 0;
+    if (unit === "usdt") { usdt = amt; qty = px ? amt / px : 0; }
+    else { qty = amt; usdt = amt * px; }
+    const fee = usdt > 0 ? usdt * FEE : 0;
+    let html = "السعر " + (orderType === "market" ? "الحي" : "المستخدم") + ": <b>" + fmt(px) + " USDT</b>";
+    if (live && orderType !== "market") html += " (السوق: " + fmt(live) + ")";
+    if (amt > 0) {
+      html += "<br>الكمية ≈ <b>" + fmt(qty, 8) + " " + sym + "</b> · القيمة ≈ <b>" + fmt(usdt, 4) + " USDT</b>";
+      html += "<br>تقدير الرسوم (0.2٪): <b>" + fmt(fee, 4) + " USDT</b>";
+    }
+    if (usdt > 5) html += "<br>⚠️ الحد الأقصى للصفقة 5 USDT؛ البوت سيرفض ما فوق ذلك.";
+    if (!TRADEABLE.has(pair)) html += "<br>⚠️ هذا الزوج للعرض فقط. التداول متاح للأزواج المسموحة.";
+    el.innerHTML = html;
+  }
+
+  document.getElementById("trade-btn").addEventListener("click", () => {
+    if (!canSend) { alert("افتح من زر المحفظة والتداول في لوحة الكتابة"); return; }
+    if (!TRADEABLE.has(pair)) { alert("هذا الزوج غير مسموح للتداول"); return; }
+    const amt = Number(document.getElementById("amt").value);
+    if (!(amt > 0)) { alert("أدخل كمية صحيحة"); return; }
+    const payload = { action: "trade", side: side, pair: pair, order_type: orderType };
+    if (unit === "usdt") payload.usdt = amt;
+    else payload.amount = amt;
+    if (orderType !== "market") {
+      const lp = Number(document.getElementById("limit-px").value);
+      if (!(lp > 0)) { alert("أدخل سعر الأمر"); return; }
+      payload.price = lp;
+    }
+    if (orderType === "stop_limit" || orderType === "take_profit" || orderType === "stop_loss") {
+      const tr = Number(document.getElementById("trig-px").value);
+      if (!(tr > 0)) { alert("أدخل سعر التفعيل"); return; }
+      payload.trigger = tr;
+    }
+    sendAction(payload);
+  });
+  document.getElementById("trade-btn").disabled = !canSend;
+
+  bindSend("btn-open", () => sendAction({ action: "open_orders", pair: pair }));
+  bindSend("btn-hist", () => sendAction({ action: "order_history", pair: pair }));
+  bindSend("btn-fills", () => sendAction({ action: "my_trades", pair: pair }));
+  bindSend("btn-cancel-all", () => {
+    if (confirm("سيُرسل طلب إلغاء كل الأوامر المفتوحة. لن يُنفَّذ قبل تأكيدك في البوت. متابعة؟"))
+      sendAction({ action: "cancel_all", pair: pair });
+  });
+  document.getElementById("ck-spot").addEventListener("click", () => {
+    cancelKind = "spot"; document.getElementById("ck-spot").classList.add("on"); document.getElementById("ck-price").classList.remove("on");
+  });
+  document.getElementById("ck-price").addEventListener("click", () => {
+    cancelKind = "price"; document.getElementById("ck-price").classList.add("on"); document.getElementById("ck-spot").classList.remove("on");
+  });
+  bindSend("btn-cancel-one", () => {
+    const id = document.getElementById("cancel-id").value.trim();
+    if (!id) { alert("أدخل رقم الأمر"); return; }
+    sendAction({ action: "cancel_order", order_id: id, pair: pair, kind: cancelKind });
+  });
+  bindSend("btn-port", () => sendAction({ action: "portfolio" }));
+  bindSend("btn-bal", () => sendAction({ action: "balance" }));
+  bindSend("dep-btn", () => sendAction({ action: "deposit", currency: depCoin.value, chain: depChain.value }));
+  bindSend("al-btn", () => {
+    const target = Number(document.getElementById("al-px").value);
+    if (!(target > 0)) { alert("أدخل سعرًا مستهدفًا"); return; }
+    sendAction({ action: "alert", symbol: alCoin.value, pair: alCoin.value + "_USDT", target: target });
+  });
+  bindSend("al-list", () => sendAction({ action: "alerts_list" }));
+
+  async function fetchJson(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("http " + r.status);
+    return r.json();
+  }
+  async function loadTickers() {
+    try {
+      const data = await fetchJson(GATE + "/spot/tickers");
+      const want = new Set(PAIRS.map(p => p.pair));
+      (data || []).forEach(t => {
+        if (want.has(t.currency_pair)) {
+          tickers[t.currency_pair] = {
+            last: Number(t.last), change: Number(t.change_percentage || 0),
+            quote: Number(t.quote_volume || 0), base: Number(t.base_volume || 0)
+          };
+        }
+      });
+      document.getElementById("dot").classList.remove("off");
+      document.getElementById("src").textContent = "Gate.io";
+      renderMarkets(); renderHead(); updateEst();
+    } catch (e) {
+      document.getElementById("dot").classList.add("off");
+    }
+  }
+  function renderHead() {
+    const t = tickers[pair] || {};
+    document.getElementById("head-pair").textContent = pair.replace("_", "/");
+    document.getElementById("head-px").textContent = t.last ? fmt(t.last) : "—";
+    const el = document.getElementById("head-chg");
+    if (t.change == null || !isFinite(t.change)) { el.textContent = ""; return; }
+    const up = t.change >= 0;
+    el.textContent = (up ? "+" : "") + Number(t.change).toFixed(2) + "%";
+    el.className = "chg " + (up ? "up" : "down");
+  }
+  function renderMarkets() {
+    const q = (document.getElementById("search").value || "").trim().toUpperCase();
+    const rows = PAIRS.filter(p => !q || p.symbol.includes(q) || p.pair.includes(q));
+    rows.sort((a, b) => {
+      const fa = favs.includes(a.pair) ? 0 : 1, fb = favs.includes(b.pair) ? 0 : 1;
+      if (fa !== fb) return fa - fb;
+      return (TRADEABLE.has(b.pair) - TRADEABLE.has(a.pair)) || a.symbol.localeCompare(b.symbol);
+    });
+    const box = document.getElementById("mkt");
+    box.innerHTML = rows.map(p => {
+      const t = tickers[p.pair] || {};
+      const up = (t.change || 0) >= 0;
+      const star = favs.includes(p.pair) ? "on" : "";
+      return '<div class="row' + (p.pair === pair ? " on" : "") + '" data-pair="' + p.pair + '">'
+        + '<button class="star ' + star + '" data-fav="' + p.pair + '">' + (star ? "★" : "☆") + "</button>"
+        + '<div class="sym">' + p.symbol + "<small> / USDT</small><div class=\"vol\">حجم 24س " + volFmt(t.quote) + (p.trade ? "" : " · عرض") + "</div></div>"
+        + '<div class="last">' + (t.last ? fmt(t.last) : "—") + "</div>"
+        + '<div class="chgc ' + (up ? "bid" : "ask") + '">' + (t.change == null ? "—" : ((up ? "+" : "") + Number(t.change || 0).toFixed(2) + "%")) + "</div>"
+        + "</div>";
+    }).join("");
+  }
+  document.getElementById("search").addEventListener("input", renderMarkets);
+  document.getElementById("mkt").addEventListener("click", ev => {
+    const fav = ev.target.closest("[data-fav]");
+    if (fav) {
+      ev.stopPropagation();
+      const p = fav.dataset.fav;
+      if (favs.includes(p)) favs = favs.filter(x => x !== p); else favs.push(p);
+      try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (e) {}
+      renderMarkets();
+      return;
+    }
+    const row = ev.target.closest("[data-pair]");
+    if (!row) return;
+    selectPair(row.dataset.pair);
+    showTab("trade");
+  });
+  function selectPair(p) {
+    pair = p;
+    renderHead(); renderMarkets(); updateEst();
+    if (orderType !== "market" && tickers[pair]) {
+      document.getElementById("limit-px").value = tickers[pair].last;
+    }
+    loadCandles(); loadBook(); loadTrades();
+  }
+
+  function sma(closes, n) {
+    const out = [];
+    let s = 0;
+    for (let i = 0; i < closes.length; i++) {
+      s += closes[i];
+      if (i >= n) s -= closes[i - n];
+      out.push(i >= n - 1 ? s / n : null);
+    }
+    return out;
+  }
+  function stdev(arr, n, means) {
+    const out = [];
+    for (let i = 0; i < arr.length; i++) {
+      if (i < n - 1 || means[i] == null) { out.push(null); continue; }
+      let v = 0;
+      for (let j = i - n + 1; j <= i; j++) v += (arr[j] - means[i]) ** 2;
+      out.push(Math.sqrt(v / n));
+    }
+    return out;
+  }
+  function rsi(closes, n) {
+    const out = [];
+    let g = 0, l = 0;
+    for (let i = 0; i < closes.length; i++) {
+      if (i === 0) { out.push(null); continue; }
+      const d = closes[i] - closes[i - 1];
+      const gain = Math.max(d, 0), loss = Math.max(-d, 0);
+      if (i <= n) {
+        g += gain; l += loss;
+        if (i < n) { out.push(null); continue; }
+        g /= n; l /= n;
+      } else {
+        g = (g * (n - 1) + gain) / n;
+        l = (l * (n - 1) + loss) / n;
+      }
+      out.push(l === 0 ? 100 : 100 - 100 / (1 + g / l));
+    }
+    return out;
+  }
+  function ensureChart() {
+    if (chart || typeof LightweightCharts === "undefined") return !!chart;
+    const opts = {
+      layout: { background: { color: "transparent" }, textColor: "#8b9aab", fontFamily: "system-ui, sans-serif" },
+      grid: { vertLines: { color: "#243041" }, horzLines: { color: "#243041" } },
+      rightPriceScale: { borderColor: "#243041" },
+      timeScale: { borderColor: "#243041", timeVisible: true, secondsVisible: false },
+      crosshair: { mode: 0 },
+      autoSize: true
     };
-    const DEPOSIT_COINS = ["USDT", "BTC", "ETH", "SOL", "BNB", "XRP", "TON", "DOGE"];
-
-    const params = new URLSearchParams(location.search);
-    const walletMode = params.get("mode") === "wallet";
-    const tg = window.Telegram && window.Telegram.WebApp;
-    const canSend = !!(walletMode && tg && typeof tg.sendData === "function");
-
-    if (tg) {
-      try {
-        tg.ready();
-        tg.expand();
-        const p = tg.themeParams || {};
-        const root = document.documentElement;
-        if (p.bg_color) root.style.setProperty("--bg", p.bg_color);
-        if (p.secondary_bg_color) {
-          root.style.setProperty("--card", p.secondary_bg_color);
-          root.style.setProperty("--card-2", p.secondary_bg_color);
-        }
-        if (p.text_color) root.style.setProperty("--text", p.text_color);
-        if (p.hint_color) {
-          root.style.setProperty("--muted", p.hint_color);
-          root.style.setProperty("--hint", p.hint_color);
-          root.style.setProperty("--line", p.hint_color + "44");
-        }
-        if (p.button_color) root.style.setProperty("--btn", p.button_color);
-        const bg = p.bg_color || "#0b0f14";
-        try { tg.setHeaderColor(bg); } catch (e) {}
-        try { tg.setBackgroundColor(bg); } catch (e) {}
-        document.querySelector('meta[name="theme-color"]').setAttribute("content", bg);
-      } catch (e) {}
+    chart = LightweightCharts.createChart(document.getElementById("chart"), opts);
+    candleSeries = chart.addCandlestickSeries({ upColor: "#16c784", downColor: "#ea3943", borderVisible: false, wickUpColor: "#16c784", wickDownColor: "#ea3943" });
+    volSeries = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "vol" });
+    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    ma20s = chart.addLineSeries({ color: "#60a5fa", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    ma50s = chart.addLineSeries({ color: "#f5c15c", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    bbU = chart.addLineSeries({ color: "#a78bfa66", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    bbL = chart.addLineSeries({ color: "#a78bfa66", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    bbM = chart.addLineSeries({ color: "#a78bfa99", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    rsiChart = LightweightCharts.createChart(document.getElementById("rsi"), Object.assign({}, opts, { timeScale: { visible: false, borderColor: "#243041" } }));
+    rsiSeries = rsiChart.addLineSeries({ color: "#f472b6", lineWidth: 2, priceLineVisible: false });
+    rsiChart.priceScale("right").applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
+    chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r) try { rsiChart.timeScale().setVisibleLogicalRange(r); } catch (e) {} });
+    const ro = new ResizeObserver(() => { try { chart.applyOptions({ autoSize: true }); } catch (e) {} });
+    ro.observe(document.getElementById("chart"));
+    return true;
+  }
+  function applyIndicators() {
+    if (!chart || !candles.length) return;
+    const closes = candles.map(c => c.close);
+    const times = candles.map(c => c.time);
+    const on = id => document.getElementById(id).checked;
+    const line = (arr) => arr.map((v, i) => v == null ? null : ({ time: times[i], value: v })).filter(Boolean);
+    const m20 = sma(closes, 20), m50 = sma(closes, 50);
+    ma20s.setData(on("ind-ma20") ? line(m20) : []);
+    ma50s.setData(on("ind-ma50") ? line(m50) : []);
+    if (on("ind-bb")) {
+      const sd = stdev(closes, 20, m20);
+      bbM.setData(line(m20));
+      bbU.setData(line(m20.map((v, i) => v == null || sd[i] == null ? null : v + 2 * sd[i])));
+      bbL.setData(line(m20.map((v, i) => v == null || sd[i] == null ? null : v - 2 * sd[i])));
+    } else { bbU.setData([]); bbL.setData([]); bbM.setData([]); }
+    volSeries.setData(on("ind-vol") ? candles.map(c => ({ time: c.time, value: c.volume, color: c.close >= c.open ? "#16c78466" : "#ea394366" })) : []);
+    const showRsi = on("ind-rsi");
+    document.getElementById("rsi-wrap").classList.toggle("hidden", !showRsi);
+    if (showRsi) {
+      rsiSeries.setData(line(rsi(closes, 14)));
+      setTimeout(() => { try { rsiChart.timeScale().fitContent(); } catch (e) {} }, 30);
     }
+  }
+  document.querySelector(".inds").addEventListener("change", applyIndicators);
 
-    const grid = document.getElementById("grid");
-    const status = document.getElementById("status");
-    const dot = document.getElementById("dot");
-    const when = document.getElementById("when");
-    const srcEl = document.getElementById("src");
-    const sparks = {};
-    let lastTickers = [];
-    let side = "buy";
-    let sellMode = "qty";
-    let sellPct = 50;
-
-    function fmt(n) {
-      n = Number(n);
-      if (!isFinite(n)) return "—";
-      if (n >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-      if (n >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
-      return n.toPrecision(4);
-    }
-
-    function showTab(name) {
-      ["prices", "trade", "wallet"].forEach(t => {
-        document.getElementById("tab-" + t).classList.toggle("hidden", t !== name);
-        document.querySelector('.tabs [data-tab="' + t + '"]').classList.toggle("on", t === name);
-      });
-    }
-    document.getElementById("tabs").addEventListener("click", ev => {
-      const btn = ev.target.closest("[data-tab]");
-      if (btn) showTab(btn.dataset.tab);
-    });
-    showTab(walletMode ? "trade" : "prices");
-
-    if (!canSend) {
-      document.getElementById("trade-hint").classList.remove("hidden");
-      document.getElementById("wallet-hint").classList.remove("hidden");
-    }
-
-    const coinSel = document.getElementById("coin");
-    COINS.forEach(c => {
-      const o = document.createElement("option");
-      o.value = c.pair; o.textContent = c.symbol + " / USDT";
-      coinSel.appendChild(o);
-    });
-    const depCoin = document.getElementById("dep-coin");
-    const depChain = document.getElementById("dep-chain");
-    DEPOSIT_COINS.forEach(sym => {
-      const o = document.createElement("option");
-      o.value = sym; o.textContent = sym;
-      depCoin.appendChild(o);
-    });
-    function fillChains() {
-      const list = CHAINS[depCoin.value] || [];
-      depChain.innerHTML = list.map(c => '<option value="' + c.id + '">' + c.label + "</option>").join("");
-    }
-    depCoin.addEventListener("change", fillChains);
-    fillChains();
-
-    document.getElementById("side-seg").addEventListener("click", ev => {
-      const btn = ev.target.closest("[data-side]");
-      if (!btn) return;
-      side = btn.dataset.side;
-      document.querySelectorAll("#side-seg button").forEach(b => b.classList.toggle("on", b === btn));
-      document.getElementById("buy-box").classList.toggle("hidden", side !== "buy");
-      document.getElementById("sell-box").classList.toggle("hidden", side !== "sell");
-      const tb = document.getElementById("trade-btn");
-      tb.textContent = side === "buy" ? "إرسال طلب الشراء للتأكيد" : "إرسال طلب البيع للتأكيد";
-      tb.classList.toggle("sellbtn", side === "sell");
-      updateEst();
-    });
-    document.getElementById("sell-mode").addEventListener("click", ev => {
-      const btn = ev.target.closest("[data-mode]");
-      if (!btn) return;
-      sellMode = btn.dataset.mode;
-      document.querySelectorAll("#sell-mode button").forEach(b => b.classList.toggle("on", b === btn));
-      document.getElementById("sell-qty-box").classList.toggle("hidden", sellMode !== "qty");
-      document.getElementById("sell-pct-box").classList.toggle("hidden", sellMode !== "pct");
-      updateEst();
-    });
-    document.getElementById("pct-seg").addEventListener("click", ev => {
-      const btn = ev.target.closest("[data-pct]");
-      if (!btn) return;
-      sellPct = Number(btn.dataset.pct);
-      document.querySelectorAll("#pct-seg button").forEach(b => b.classList.toggle("on", b === btn));
-      updateEst();
-    });
-    ["coin", "usdt-amt", "coin-amt"].forEach(id => {
-      document.getElementById(id).addEventListener("input", updateEst);
-      document.getElementById(id).addEventListener("change", updateEst);
-    });
-
-    function livePrice(pair) {
-      const t = lastTickers.find(x => x.pair === pair);
-      return t ? Number(t.last) : null;
-    }
-
-    function updateEst() {
-      const pair = coinSel.value;
-      const sym = (PAIR[pair] || {}).symbol || "";
-      const px = livePrice(pair);
-      const el = document.getElementById("est");
-      if (!px) { el.textContent = "جاري جلب السعر…"; return; }
-      let html = "السعر الحي: <b>" + fmt(px) + " USDT</b>";
-      if (side === "buy") {
-        const usdt = Number(document.getElementById("usdt-amt").value);
-        if (usdt > 0) html += "<br>التقدير: ستشتري نحو <b>" + fmt(usdt / px) + " " + sym + "</b>";
-        if (usdt > 5) html += "<br>⚠️ الحد الأقصى للصفقة 5 USDT؛ البوت سيرفض ما فوق ذلك.";
-      } else if (sellMode === "pct") {
-        html += "<br>سيبيع البوت <b>" + sellPct + "%</b> من رصيد " + sym + " المتاح (بعد التحقق من الحد الأدنى والحد اليومي).";
-      } else {
-        const qty = Number(document.getElementById("coin-amt").value);
-        if (qty > 0) html += "<br>التقدير: قيمة البيع نحو <b>" + fmt(qty * px) + " USDT</b>";
-        if (qty > 0 && qty * px > 5) html += "<br>⚠️ إذا تجاوزت القيمة 5 USDT سيرفض البوت الصفقة.";
+  async function loadCandles() {
+    try {
+      const data = await fetchJson(GATE + "/spot/candlesticks?currency_pair=" + encodeURIComponent(pair) + "&interval=" + encodeURIComponent(tf) + "&limit=300");
+      // [t, quote_vol, close, high, low, open, base_vol, closed]
+      candles = (data || []).map(r => ({
+        time: Number(r[0]), open: Number(r[5]), high: Number(r[3]), low: Number(r[4]), close: Number(r[2]), volume: Number(r[6] || 0)
+      })).filter(c => isFinite(c.time) && isFinite(c.close));
+      candles.sort((a, b) => a.time - b.time);
+      if (ensureChart()) {
+        candleSeries.setData(candles);
+        applyIndicators();
+        chart.timeScale().fitContent();
       }
-      el.innerHTML = html;
+    } catch (e) {}
+  }
+  async function loadBook() {
+    try {
+      const d = await fetchJson(GATE + "/spot/order_book?currency_pair=" + encodeURIComponent(pair) + "&limit=10");
+      const asks = (d.asks || []).slice(0, 8).reverse();
+      const bids = (d.bids || []).slice(0, 8);
+      const max = Math.max(1, ...asks.concat(bids).map(x => Number(x[1]) * Number(x[0])));
+      const line = (row, cls) => {
+        const px = Number(row[0]), qty = Number(row[1]), notional = px * qty;
+        const w = Math.max(4, Math.round(100 * notional / max));
+        return '<div class="l ' + cls + '"><span class="bar" style="width:' + w + '%"></span><span>' + fmt(px) + "</span><span>" + fmt(qty, 6) + "</span><span>" + volFmt(notional) + "</span></div>";
+      };
+      document.getElementById("ob").innerHTML = asks.map(r => line(r, "ask")).join("") + '<div class="l" style="color:var(--muted);padding:4px 4px">سعر · كمية · قيمة</div>' + bids.map(r => line(r, "bid")).join("");
+    } catch (e) {
+      document.getElementById("ob").textContent = "تعذر تحميل دفتر الأوامر";
     }
+  }
+  async function loadTrades() {
+    try {
+      const d = await fetchJson(GATE + "/spot/trades?currency_pair=" + encodeURIComponent(pair) + "&limit=12");
+      document.getElementById("trd").innerHTML = (d || []).map(t => {
+        const cls = t.side === "buy" ? "bid" : "ask";
+        return '<div class="l ' + cls + '"><span>' + fmt(t.price) + "</span><span>" + fmt(t.amount, 6) + "</span><span>" + (t.side === "buy" ? "شراء" : "بيع") + "</span></div>";
+      }).join("");
+    } catch (e) {
+      document.getElementById("trd").textContent = "تعذر تحميل الصفقات";
+    }
+  }
 
-    function sendAction(payload) {
-      if (!canSend) {
-        alert("افتح من زر المحفظة والتداول في لوحة الكتابة");
-        return false;
-      }
-      try {
-        tg.sendData(JSON.stringify(payload));
-        try { tg.close(); } catch (e) {}
-        return true;
-      } catch (e) {
-        alert("افتح من زر المحفظة والتداول في لوحة الكتابة");
-        return false;
-      }
-    }
-
-    document.getElementById("trade-btn").addEventListener("click", () => {
-      if (!canSend) { alert("افتح من زر المحفظة والتداول في لوحة الكتابة"); return; }
-      const pair = coinSel.value;
-      const payload = { action: "trade", side: side, pair: pair };
-      if (side === "buy") {
-        const usdt = Number(document.getElementById("usdt-amt").value);
-        if (!(usdt > 0)) { alert("أدخل مبلغًا صحيحًا بالـ USDT"); return; }
-        payload.usdt = usdt;
-      } else if (sellMode === "pct") {
-        payload.percent = sellPct;
-      } else {
-        const qty = Number(document.getElementById("coin-amt").value);
-        if (!(qty > 0)) { alert("أدخل كمية البيع"); return; }
-        payload.amount = qty;
-      }
-      sendAction(payload);
-    });
-    document.getElementById("bal-btn").addEventListener("click", () => {
-      sendAction({ action: "balance" });
-    });
-    document.getElementById("dep-btn").addEventListener("click", () => {
-      sendAction({ action: "deposit", currency: depCoin.value, chain: depChain.value });
-    });
-    document.getElementById("trade-btn").disabled = !canSend;
-    document.getElementById("bal-btn").disabled = !canSend;
-    document.getElementById("dep-btn").disabled = !canSend;
-
-    function drawSpark(canvas, values, up) {
-      if (!canvas || !values || values.length < 2) return;
-      const dpr = window.devicePixelRatio || 1;
-      const w = canvas.clientWidth, h = canvas.clientHeight;
-      if (!w || !h) return;
-      canvas.width = w * dpr; canvas.height = h * dpr;
-      const ctx = canvas.getContext("2d");
-      ctx.scale(dpr, dpr);
-      const min = Math.min(...values), max = Math.max(...values);
-      const span = max - min || 1;
-      ctx.clearRect(0, 0, w, h);
-      ctx.beginPath();
-      values.forEach((v, i) => {
-        const x = (i / (values.length - 1)) * w;
-        const y = h - 4 - ((v - min) / span) * (h - 8);
-        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-      });
-      const color = up ? "#26c281" : "#ef5350";
-      ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke();
-      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
-      const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, up ? "rgba(38,194,129,.22)" : "rgba(239,83,80,.22)");
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grad; ctx.fill();
-    }
-
-    async function fetchJson(url, timeout) {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeout || 12000);
-      try {
-        const r = await fetch(url, { signal: ctrl.signal });
-        if (!r.ok) throw new Error("http " + r.status);
-        return await r.json();
-      } finally { clearTimeout(t); }
-    }
-
-    async function loadGateTickers() {
-      const data = await fetchJson("https://api.gateio.ws/api/v4/spot/tickers");
-      if (!Array.isArray(data)) throw new Error("bad gate");
-      const wanted = new Set(COINS.map(c => c.pair));
-      const out = [];
-      for (const t of data) {
-        if (!wanted.has(t.currency_pair)) continue;
-        const last = Number(t.last), chg = Number(t.change_percentage);
-        if (!isFinite(last)) continue;
-        const c = PAIR[t.currency_pair];
-        out.push({ symbol: c.symbol, pair: c.pair, last, change: isFinite(chg) ? chg : 0 });
-      }
-      if (!out.length) throw new Error("empty gate");
-      out.sort((a, b) => COINS.findIndex(c => c.symbol === a.symbol) - COINS.findIndex(c => c.symbol === b.symbol));
-      return out;
-    }
-    async function loadCgTickers() {
-      const ids = COINS.map(c => c.cg).join(",");
-      const data = await fetchJson("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=" + encodeURIComponent(ids) + "&price_change_percentage=24h&sparkline=true");
-      if (!Array.isArray(data) || !data.length) throw new Error("bad cg");
-      return data.map(row => {
-        const c = BY_CG[row.id];
-        if (!c) return null;
-        const spark = (((row.sparkline_in_7d || {}).price) || []).filter(v => isFinite(Number(v))).map(Number);
-        if (spark.length) sparks[c.pair] = spark;
-        return { symbol: c.symbol, pair: c.pair, last: Number(row.current_price), change: Number(row.price_change_percentage_24h || 0) };
-      }).filter(Boolean);
-    }
-    async function loadBnTickers() {
-      const symbols = encodeURIComponent(JSON.stringify(COINS.map(c => c.bn)));
-      const data = await fetchJson("https://data-api.binance.vision/api/v3/ticker/24hr?symbols=" + symbols);
-      const rows = Array.isArray(data) ? data : [data];
-      const out = rows.map(t => {
-        const c = BY_BN[t.symbol];
-        if (!c) return null;
-        return { symbol: c.symbol, pair: c.pair, last: Number(t.lastPrice), change: Number(t.priceChangePercent) };
-      }).filter(Boolean);
-      if (!out.length) throw new Error("empty binance");
-      return out;
-    }
-    async function loadTickers() {
-      const chain = [
-        { name: "Gate.io", fn: loadGateTickers },
-        { name: "CoinGecko", fn: loadCgTickers },
-        { name: "Binance", fn: loadBnTickers }
-      ];
-      let lastErr;
-      for (const src of chain) {
-        try {
-          const tickers = await src.fn();
-          if (tickers && tickers.length) return { source: src.name, tickers };
-        } catch (e) { lastErr = e; }
-      }
-      throw lastErr || new Error("all sources failed");
-    }
-    async function loadSparks(pair) {
-      if (sparks[pair] && sparks[pair].length > 2) {
-        const closes = sparks[pair];
-        drawSpark(document.getElementById("sp-" + pair.replace("_", "")), closes, closes[closes.length - 1] >= closes[0]);
-        return;
-      }
-      try {
-        const data = await fetchJson("https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=" + encodeURIComponent(pair) + "&interval=1h&limit=48");
-        const closes = (Array.isArray(data) ? data : []).map(x => Number(x[2])).filter(v => isFinite(v));
-        if (closes.length > 2) {
-          sparks[pair] = closes;
-          drawSpark(document.getElementById("sp-" + pair.replace("_", "")), closes, closes[closes.length - 1] >= closes[0]);
-        }
-      } catch (e) {}
-    }
-    function cardHTML(t) {
-      const id = t.pair.replace("_", "");
-      const up = t.change >= 0;
-      return `<article class="card" data-pair="${t.pair}">
-        <div class="row">
-          <div><div class="sym">${t.symbol}</div><div class="pair">${t.pair.replace("_","/")}</div></div>
-          <div class="chg ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${up ? "+" : ""}${t.change.toFixed(2)}%</div>
-        </div>
-        <div class="price" id="px-${id}">${fmt(t.last)}</div>
-        <canvas id="sp-${id}"></canvas>
-      </article>`;
-    }
-    async function refresh(first) {
-      try {
-        const { source, tickers } = await loadTickers();
-        lastTickers = tickers;
-        updateEst();
-        if (first) {
-          grid.innerHTML = tickers.map(cardHTML).join("");
-          tickers.forEach(t => loadSparks(t.pair));
-        } else {
-          tickers.forEach(t => {
-            const id = t.pair.replace("_", "");
-            const el = document.getElementById("px-" + id);
-            if (el) el.textContent = fmt(t.last);
-            const card = document.querySelector('[data-pair="' + t.pair + '"]');
-            if (card) {
-              const badge = card.querySelector(".chg");
-              const up = t.change >= 0;
-              badge.className = "chg " + (up ? "up" : "down");
-              badge.textContent = (up ? "▲ +" : "▼ ") + t.change.toFixed(2) + "%";
-            }
-          });
-        }
-        dot.classList.remove("err");
-        status.textContent = "مباشر";
-        srcEl.textContent = source;
-        when.textContent = new Date().toLocaleTimeString("ar-EG", {
-          hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Aden"
-        }) + " آسيا/عدن";
-      } catch (e) {
-        dot.classList.add("err");
-        status.textContent = "انقطع التحديث";
-        if (first) grid.innerHTML = '<div class="errbox">تعذر تحميل الأسعار. حاول لاحقًا.</div>';
-      }
-    }
-    refresh(true);
-    setInterval(() => refresh(false), 15000);
-  </script>
+  loadTickers(); loadCandles(); loadBook(); loadTrades();
+  setInterval(loadTickers, 12000);
+  setInterval(loadBook, 4000);
+  setInterval(loadTrades, 5000);
+  setInterval(loadCandles, 20000);
+})();
+</script>
 </body>
 </html>
