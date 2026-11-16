@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v6-deposit -->
+  <!-- ajcoin-miniapp v7-deposit -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -145,6 +145,20 @@
     .empty { text-align: center; color: var(--muted); padding: 28px 12px; font-size: 13px; }
     .warn-line { background: #f5c15c18; border: 1px solid #f5c15c55; color: var(--warn);
       border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.6; margin: 8px 0 0; }
+    .dep-inline { margin-top: 12px; padding-top: 4px; }
+    .dep-inline .qrbox svg, .dep-inline .qrbox img { width: 160px; height: 160px; }
+    .dep-saved { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .dep-item { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+    .dep-item .top { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+    .dep-item .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .dep-item .pill { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--muted); }
+    .dep-item .addr { direction: ltr; text-align: left; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px; line-height: 1.5; word-break: break-all; margin: 8px 0; }
+    .dep-item .rowbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .dep-item .rowbtns button, .btn-mini { min-height: 40px; padding: 6px 10px; border-radius: 10px;
+      border: 1px solid var(--line); background: var(--card-2); color: var(--text); font: inherit; font-weight: 650; font-size: 12px; }
+    .dep-item .rowbtns button { flex: 1; }
+    .btn-mini.refresh { border-color: #f5c15c55; color: var(--warn); }
   </style>
 </head>
 <body>
@@ -267,7 +281,7 @@
   </section>
 
   <section class="panel hidden" id="tab-portfolio">
-    <p class="hint soft">الرصيد والأرباح يصلان في رسالة من البوت. بعد طلب الإيداع يصلك العنوان في المحادثة وزر لعرضه هنا مع رمز QR. لا تُخزَّن عناوين في الصفحة.</p>
+    <p class="hint soft">الرصيد والأرباح يصلان في رسالة من البوت. عناوين الإيداع تُحفظ على جهازك داخل تيليجرام وتظهر هنا مباشرة. إن لم يكن العنوان محفوظاً بعد، اطلبه فيُعرض بزر داخل التطبيق.</p>
     <div class="actions">
       <button id="btn-port">عرض رصيدي والأرباح</button>
       <button id="btn-bal">عرض رصيدي فقط</button>
@@ -278,8 +292,29 @@
       <select id="dep-coin"></select>
       <label class="f" for="dep-chain">الشبكة</label>
       <select id="dep-chain"></select>
-      <button class="go" id="dep-btn" style="background:var(--btn)">طلب عنوان الإيداع</button>
+      <div id="dep-inline" class="dep-inline hidden">
+        <div class="qrbox" id="dep-inline-qr"></div>
+        <div class="addrbox" id="dep-inline-a"></div>
+        <div class="copyrow">
+          <button type="button" id="dep-inline-copy">نسخ العنوان</button>
+          <button type="button" id="dep-inline-qrbtn">عرض الرمز</button>
+        </div>
+        <div id="dep-inline-memo-box" class="hidden">
+          <p class="warn-line">يجب إضافة الـ Memo/Tag كما هو ظاهر تماماً، وإلا قد لا يصل التحويل.</p>
+          <div class="addrbox" id="dep-inline-m" style="margin-top:8px"></div>
+          <div class="copyrow"><button type="button" id="dep-inline-copy-m">نسخ الـ Memo</button></div>
+        </div>
+        <p class="warn-line" id="dep-inline-warn"></p>
+        <div class="copyrow" id="dep-inline-refresh-row" style="margin-top:8px">
+          <button type="button" class="btn-mini refresh hidden" id="dep-inline-refresh">تحديث</button>
+        </div>
+      </div>
+      <button class="go" id="dep-btn" style="background:var(--btn);margin-top:12px">طلب عنوان الإيداع</button>
       <p class="note">⚠️ السحب غير متاح من البوت أو هذه الصفحة. إذا أردت سحب رصيدك فاستخدم تطبيق Gate.io مباشرة.</p>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3>عناوين الإيداع</h3>
+      <div id="dep-saved-list" class="dep-saved"><div class="empty">لا يوجد عنوان محفوظ بعد. اطلب عنواناً من النموذج أعلاه.</div></div>
     </div>
   </section>
 
@@ -362,6 +397,8 @@
   };
   const DEPOSIT_COINS = ["USDT", "BTC", "ETH", "SOL", "BNB", "XRP", "TON", "DOGE"];
   const FAV_KEY = "ajcoin.favorites";
+  const DEP_STORE_KEY = "ajcoin.dep_addrs_v1";
+  const DEP_WEEK = 7 * 24 * 3600;
   const GATE = "https://api.gateio.ws/api/v4";
   const FEE = 0.002;
 
@@ -503,14 +540,114 @@
       el.innerHTML = "<div class='empty'>تعذر إنشاء رمز QR</div>";
     }
   }
+  function depWarn(info) {
+    return "أرسل فقط " + (info.c || "هذه العملة") + " عبر شبكة " + (chainLabel(info.n) || info.n || "المحددة") + "، وإلا قد تضيع الأموال.";
+  }
+  function depKey(c, n) {
+    return String(c || "").toUpperCase() + "|" + String(n || "").toUpperCase();
+  }
+  function normalizeDep(info) {
+    if (!info) return null;
+    if (Array.isArray(info)) {
+      info = { c: info[0], n: info[1], a: info[2], m: info[3], t: info[4] };
+    }
+    const c = String(info.c || "").toUpperCase().trim();
+    const n = String(info.n || "").toUpperCase().trim();
+    const a = String(info.a || "").trim();
+    if (!c || !a) return null;
+    return { c: c, n: n, a: a, m: String(info.m || ""), t: Number(info.t || 0) || 0 };
+  }
+  function isDepStale(info, sec) {
+    if (!info || !info.t) return true;
+    return (Date.now() / 1000 - Number(info.t)) > sec;
+  }
+  function cloudStorageOk() {
+    return !!(tg && tg.CloudStorage && typeof tg.CloudStorage.getItem === "function" && typeof tg.CloudStorage.setItem === "function");
+  }
+  function csGet(key) {
+    return new Promise(resolve => {
+      if (!cloudStorageOk()) { resolve(null); return; }
+      try {
+        tg.CloudStorage.getItem(key, (err, value) => {
+          if (err) resolve(null);
+          else resolve(value == null ? null : String(value));
+        });
+      } catch (e) { resolve(null); }
+    });
+  }
+  function csSet(key, value) {
+    return new Promise(resolve => {
+      if (!cloudStorageOk()) { resolve(false); return; }
+      try {
+        tg.CloudStorage.setItem(key, value, (err, ok) => resolve(!err && ok !== false));
+      } catch (e) { resolve(false); }
+    });
+  }
+  let depStore = {};
+  function readLocalDepStore() {
+    try {
+      const raw = localStorage.getItem(DEP_STORE_KEY);
+      const data = JSON.parse(raw || "{}");
+      return (data && typeof data === "object" && !Array.isArray(data)) ? data : {};
+    } catch (e) { return {}; }
+  }
+  function writeLocalDepStore(obj) {
+    try { localStorage.setItem(DEP_STORE_KEY, JSON.stringify(obj)); } catch (e) {}
+  }
+  async function loadDepStore() {
+    let raw = null;
+    const fromCs = await csGet(DEP_STORE_KEY);
+    if (fromCs) raw = fromCs;
+    let parsed = null;
+    if (raw) {
+      try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) parsed = readLocalDepStore();
+    else {
+      const local = readLocalDepStore();
+      Object.keys(local).forEach(k => {
+        const a = normalizeDep(local[k]), b = normalizeDep(parsed[k]);
+        if (a && (!b || Number(a.t || 0) > Number(b.t || 0))) parsed[k] = a;
+      });
+    }
+    const clean = {};
+    Object.keys(parsed).forEach(k => {
+      const n = normalizeDep(parsed[k]);
+      if (n) clean[depKey(n.c, n.n)] = n;
+    });
+    depStore = clean;
+    if (!fromCs && Object.keys(depStore).length) await csSet(DEP_STORE_KEY, JSON.stringify(depStore));
+  }
+  async function persistDepStore() {
+    const raw = JSON.stringify(depStore);
+    writeLocalDepStore(depStore);
+    await csSet(DEP_STORE_KEY, raw);
+  }
+  async function saveDepInfos(list) {
+    let changed = false;
+    (list || []).forEach(item => {
+      const info = normalizeDep(item);
+      if (!info) return;
+      const k = depKey(info.c, info.n);
+      const prev = depStore[k];
+      if (!prev || Number(info.t || 0) >= Number(prev.t || 0)) {
+        depStore[k] = info;
+        changed = true;
+      }
+    });
+    if (changed) await persistDepStore();
+    renderSavedDeps();
+    syncInlineDep();
+  }
   function closeDepView() {
     document.getElementById("dep-view").classList.add("hidden");
   }
   function openDepView(info) {
+    info = normalizeDep(info);
+    if (!info) return;
     const view = document.getElementById("dep-view");
     const stale = document.getElementById("dep-stale");
-    const age = info.t ? (Date.now() / 1000 - Number(info.t)) : 0;
-    const old = age > 24 * 3600;
+    const old = isDepStale(info, 24 * 3600);
     stale.classList.toggle("hidden", !old);
     document.getElementById("dep-c").textContent = info.c || "—";
     document.getElementById("dep-n").textContent = chainLabel(info.n) + (info.n ? " · " + info.n : "");
@@ -519,25 +656,137 @@
     const hasMemo = !!(info.m && String(info.m).trim());
     memoBox.classList.toggle("hidden", !hasMemo);
     document.getElementById("dep-m").textContent = hasMemo ? info.m : "";
-    document.getElementById("dep-warn").textContent = "أرسل فقط " + (info.c || "هذه العملة") + " عبر شبكة " + (chainLabel(info.n) || info.n || "المحددة") + "، وإلا قد تضيع الأموال.";
+    document.getElementById("dep-warn").textContent = depWarn(info);
     renderQr(document.getElementById("dep-qr"), info.a || "");
     view.classList.remove("hidden");
     haptic("sel");
   }
+  function lookupSavedDep(c, n) {
+    return depStore[depKey(c, n)] || null;
+  }
+  function syncInlineDep() {
+    const box = document.getElementById("dep-inline");
+    if (!box) return;
+    const c = (document.getElementById("dep-coin") || {}).value || "";
+    const n = (document.getElementById("dep-chain") || {}).value || "";
+    const info = lookupSavedDep(c, n);
+    const btn = document.getElementById("dep-btn");
+    if (!info) {
+      box.classList.add("hidden");
+      if (btn) btn.textContent = "طلب عنوان الإيداع";
+      return;
+    }
+    box.classList.remove("hidden");
+    document.getElementById("dep-inline-a").textContent = info.a || "";
+    renderQr(document.getElementById("dep-inline-qr"), info.a || "");
+    const hasMemo = !!(info.m && String(info.m).trim());
+    document.getElementById("dep-inline-memo-box").classList.toggle("hidden", !hasMemo);
+    document.getElementById("dep-inline-m").textContent = hasMemo ? info.m : "";
+    document.getElementById("dep-inline-warn").textContent = depWarn(info);
+    const stale = isDepStale(info, DEP_WEEK);
+    document.getElementById("dep-inline-refresh").classList.toggle("hidden", !stale);
+    if (btn) btn.textContent = stale ? "طلب عنوان محدّث من البوت" : "طلب عنوان محدّث (اختياري)";
+  }
+  function renderSavedDeps() {
+    const host = document.getElementById("dep-saved-list");
+    if (!host) return;
+    const items = Object.keys(depStore).map(k => depStore[k]).filter(Boolean);
+    items.sort((a, b) => Number(b.t || 0) - Number(a.t || 0));
+    host.innerHTML = "";
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "لا يوجد عنوان محفوظ بعد. اطلب عنواناً من النموذج أعلاه.";
+      host.appendChild(empty);
+      return;
+    }
+    items.forEach((info, idx) => {
+      const card = document.createElement("div");
+      card.className = "dep-item";
+      const top = document.createElement("div");
+      top.className = "top";
+      const pills = document.createElement("div");
+      pills.className = "pills";
+      const p1 = document.createElement("span"); p1.className = "pill"; p1.textContent = info.c || "—";
+      const p2 = document.createElement("span"); p2.className = "pill"; p2.textContent = chainLabel(info.n) + (info.n ? " · " + info.n : "");
+      pills.appendChild(p1); pills.appendChild(p2);
+      top.appendChild(pills);
+      if (isDepStale(info, DEP_WEEK)) {
+        const rf = document.createElement("button");
+        rf.type = "button"; rf.className = "btn-mini refresh"; rf.textContent = "تحديث";
+        rf.dataset.act = "refresh"; rf.dataset.idx = String(idx);
+        top.appendChild(rf);
+      }
+      const addr = document.createElement("div");
+      addr.className = "addr";
+      addr.textContent = info.a || "";
+      card.appendChild(top);
+      card.appendChild(addr);
+      if (info.m && String(info.m).trim()) {
+        const memo = document.createElement("div");
+        memo.className = "addr";
+        memo.textContent = "Memo: " + info.m;
+        card.appendChild(memo);
+      }
+      const warn = document.createElement("p");
+      warn.className = "warn-line";
+      warn.textContent = depWarn(info);
+      card.appendChild(warn);
+      const row = document.createElement("div");
+      row.className = "rowbtns";
+      const bCopy = document.createElement("button");
+      bCopy.type = "button"; bCopy.textContent = "نسخ"; bCopy.dataset.act = "copy"; bCopy.dataset.idx = String(idx);
+      const bQr = document.createElement("button");
+      bQr.type = "button"; bQr.textContent = "رمز QR"; bQr.dataset.act = "qr"; bQr.dataset.idx = String(idx);
+      row.appendChild(bCopy); row.appendChild(bQr);
+      card.appendChild(row);
+      card.dataset.idx = String(idx);
+      host.appendChild(card);
+    });
+    host._items = items;
+  }
   function consumeDepHash() {
     const hash = location.hash || "";
-    const m = hash.match(/^#dep=([A-Za-z0-9_-]+)$/);
+    const m1 = hash.match(/^#dep=([A-Za-z0-9_-]+)$/);
+    const m2 = hash.match(/^#deps=([A-Za-z0-9_-]+)$/);
     try {
       const clean = location.pathname + location.search;
       if (location.hash) history.replaceState(null, "", clean);
     } catch (e) {}
-    if (!m) return;
+    return { m1: m1, m2: m2 };
+  }
+  async function initDepositStore() {
+    await loadDepStore();
+    const { m1, m2 } = consumeDepHash();
+    let opened = null;
     try {
-      const info = JSON.parse(b64urlDecode(m[1]));
-      if (!info || !info.a || !info.c) { toast("طلب الإيداع غير مكتمل. اطلب العنوان من جديد.", "err"); return; }
-      openDepView({ c: info.c, n: info.n || "", a: info.a, m: info.m || "", t: info.t || 0 });
+      if (m1) {
+        const info = normalizeDep(JSON.parse(b64urlDecode(m1[1])));
+        if (!info) { toast("طلب الإيداع غير مكتمل. اطلب العنوان من جديد.", "err"); }
+        else {
+          await saveDepInfos([info]);
+          opened = info;
+        }
+      } else if (m2) {
+        const data = JSON.parse(b64urlDecode(m2[1]));
+        const list = Array.isArray(data) ? data : [data];
+        const norms = list.map(normalizeDep).filter(Boolean);
+        if (!norms.length) { toast("طلب الإيداع غير مكتمل. اطلب العنوان من جديد.", "err"); }
+        else {
+          await saveDepInfos(norms);
+          if (norms.length === 1) opened = norms[0];
+        }
+      }
     } catch (e) {
       toast("تعذر قراءة عنوان الإيداع. اطلب العنوان من جديد.", "err");
+    }
+    renderSavedDeps();
+    syncInlineDep();
+    if (opened) {
+      showTab("portfolio");
+      openDepView(opened);
+    } else if (m2) {
+      showTab("portfolio");
     }
   }
   function syncTelegramChrome(name) {
@@ -610,6 +859,7 @@
   function applyChainOptions(list) {
     depChain.innerHTML = (list || []).map(c => '<option value="' + c.id + '">' + c.label + "</option>").join("");
     if (!depChain.options.length) depChain.innerHTML = "<option value=''>لا توجد شبكة متاحة</option>";
+    try { syncInlineDep(); } catch (e) {}
   }
   function fillChains() {
     const cur = depCoin.value;
@@ -626,7 +876,9 @@
       })
       .catch(() => { /* Gate currency_chains has no CORS; keep static map */ });
   }
-  depCoin.addEventListener("change", fillChains); fillChains();
+  depCoin.addEventListener("change", fillChains);
+  depChain.addEventListener("change", () => { try { syncInlineDep(); } catch (e) {} });
+  fillChains();
   const alCoin = document.getElementById("al-coin");
   const aiCoin = document.getElementById("ai-coin");
   PAIRS.filter(p => p.trade).forEach(p => {
@@ -1083,7 +1335,36 @@
   document.getElementById("dep-copy-a").addEventListener("click", () => copyText(document.getElementById("dep-a").textContent, "العنوان"));
   document.getElementById("dep-copy-m").addEventListener("click", () => copyText(document.getElementById("dep-m").textContent, "الـ Memo"));
   document.getElementById("dep-view").addEventListener("click", ev => { if (ev.target.id === "dep-view") closeDepView(); });
-  consumeDepHash();
+  document.getElementById("dep-inline-copy").addEventListener("click", () => copyText(document.getElementById("dep-inline-a").textContent, "العنوان"));
+  document.getElementById("dep-inline-copy-m").addEventListener("click", () => copyText(document.getElementById("dep-inline-m").textContent, "الـ Memo"));
+  document.getElementById("dep-inline-qrbtn").addEventListener("click", () => {
+    const info = lookupSavedDep(depCoin.value, depChain.value);
+    if (info) openDepView(info);
+  });
+  document.getElementById("dep-inline-refresh").addEventListener("click", () => {
+    haptic("medium");
+    sendAction({ action: "deposit", currency: depCoin.value, chain: depChain.value });
+  });
+  document.getElementById("dep-saved-list").addEventListener("click", ev => {
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    const items = document.getElementById("dep-saved-list")._items || [];
+    const info = items[Number(btn.dataset.idx)];
+    if (!info) return;
+    if (btn.dataset.act === "copy") copyText(info.a, "العنوان");
+    else if (btn.dataset.act === "qr") openDepView(info);
+    else if (btn.dataset.act === "refresh") {
+      haptic("medium");
+      if (info.c) {
+        depCoin.value = info.c;
+        fillChains();
+        if (info.n) depChain.value = info.n;
+        syncInlineDep();
+        sendAction({ action: "deposit", currency: info.c, chain: info.n || "" });
+      }
+    }
+  });
+  initDepositStore();
   loadTickers(); loadCandles(); loadBook(); loadTrades();
   setInterval(loadTickers, 12000);
   setInterval(loadBook, 4000);
