@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v10-futures -->
+  <!-- ajcoin-miniapp v10.1-caps -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -271,9 +271,9 @@
         <button data-unit="coin">بالعملة</button>
       </div>
       <label class="f" for="amt">الكمية</label>
-      <input id="amt" type="number" inputmode="decimal" step="any" value="1" />
+      <input id="amt" type="number" inputmode="decimal" step="any" value="3" />
       <label class="f" for="amt-max">حد أقصى مرجعي لأزرار النسبة (ليس رصيدك)</label>
-      <input id="amt-max" type="number" inputmode="decimal" step="any" value="1" />
+      <input id="amt-max" type="number" inputmode="decimal" step="any" value="3" />
       <div class="pct" id="pct">
         <button data-p="25">25%</button>
         <button data-p="50">50%</button>
@@ -282,7 +282,7 @@
       </div>
       <div class="est" id="est">جاري تقدير الصفقة…</div>
       <button class="go" id="trade-btn">إرسال أمر الشراء للتأكيد</button>
-      <p class="note">كل أمر يُرسل إلى البوت ويحتاج موافقتك بـ ✅ خلال 60 ثانية قبل التنفيذ. الحد 1 USDT للصفقة و20 في اليوم. معظم الأزواج الفورية في Gate حدها الأدنى 3 USDT — إن كان طلبك أقل سيظهر تنبيه واضح ولن يُرسل للتأكيد. السحب غير متاح هنا — استخدم تطبيق Gate.io.</p>
+      <p class="note">كل أمر يُرسل إلى البوت ويحتاج موافقتك بـ ✅ خلال 60 ثانية قبل التنفيذ. حد الصفقة الفورية 3 USDT، وحد هامش العقود 1 USDT، والحد اليومي 20 USDT. إن كان طلبك الفوري أقل من حد المنصة (غالباً 3 USDT) سيظهر تنبيه واضح ولن يُرسل للتأكيد. السحب غير متاح هنا — استخدم تطبيق Gate.io.</p>
     </div>
   </section>
 
@@ -481,7 +481,8 @@
   const DEP_WEEK = 7 * 24 * 3600;
   const GATE = "https://api.gateio.ws/api/v4";
   const FEE = 0.002;
-  const TRADE_CAP = 1;
+  const TRADE_CAP = 3;
+  const FUT_CAP = 1;
   const FUT_CONTRACTS = ["BTC_USDT", "ETH_USDT", "SOL_USDT", "BNB_USDT", "XRP_USDT", "DOGE_USDT"];
   let spotMinQuote = 0;
 
@@ -1712,8 +1713,8 @@
     err.classList.add("hidden");
     err.textContent = "";
     btn.disabled = false;
-    if (usdt > TRADE_CAP + 1e-12) {
-      err.textContent = "الحد الأقصى لهامش الصفقة هو " + TRADE_CAP + " USDT.";
+    if (usdt > FUT_CAP + 1e-12) {
+      err.textContent = "الحد الأقصى لهامش الصفقة هو " + FUT_CAP + " USDT.";
       err.classList.remove("hidden");
       btn.disabled = true;
     } else if (mark > 0 && qm > 0 && usdt > 0) {
@@ -1722,7 +1723,7 @@
       const minNotional = omin * qm * mark;
       const minMargin = minNotional / futLev;
       if (contracts < omin) {
-        err.textContent = "هامش " + fmt(usdt, 4) + " USDT برافعة " + futLev + "x لا يكفي لفتح الحد الأدنى لهذا العقد (" + omin + " عقد، قيمة اسمية تقارب " + fmt(minNotional, 2) + " USDT). الحد الأدنى للهامش عند هذه الرافعة حوالي " + fmt(minMargin, 2) + " USDT. حد الصفقة الحالي " + TRADE_CAP + " USDT.";
+        err.textContent = "هامش " + fmt(usdt, 4) + " USDT برافعة " + futLev + "x لا يكفي لفتح الحد الأدنى لهذا العقد (" + omin + " عقد، قيمة اسمية تقارب " + fmt(minNotional, 2) + " USDT). الحد الأدنى للهامش عند هذه الرافعة حوالي " + fmt(minMargin, 2) + " USDT. حد الصفقة الحالي " + FUT_CAP + " USDT.";
         err.classList.remove("hidden");
         btn.disabled = true;
       } else {
@@ -1774,7 +1775,7 @@
   document.getElementById("fut-open").addEventListener("click", () => {
     const usdt = Number(document.getElementById("fut-usdt").value);
     if (!(usdt > 0)) { alert("أدخل هامش الصفقة بالـ USDT."); return; }
-    if (usdt > TRADE_CAP + 1e-12) { alert("الحد الأقصى لهامش الصفقة هو " + TRADE_CAP + " USDT."); return; }
+    if (usdt > FUT_CAP + 1e-12) { alert("الحد الأقصى لهامش الصفقة هو " + FUT_CAP + " USDT."); return; }
     if (document.getElementById("fut-open").disabled) {
       const msg = document.getElementById("fut-err").textContent || "حجم الصفقة أقل من حد العقد.";
       alert(msg);
