@@ -1,5 +1,5 @@
-/* Network-first for the app page so updates (v14-auto) go live; cache CDN shells only. */
-const CACHE = "ajcoin-v14-auto";
+/* Network-first for the app page so updates (v15-auto) go live; cache CDN shells only. */
+const CACHE = "ajcoin-v15-auto";
 self.addEventListener("install", e => { self.skipWaiting(); });
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {

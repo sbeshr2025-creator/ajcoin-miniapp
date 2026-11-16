@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v14-auto -->
+  <!-- ajcoin-miniapp v15-auto -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -28,7 +28,9 @@
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
-      font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+      font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+      overflow-x: hidden; max-width: 100%; }
+    #aj-debug { max-width: 100%; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 11px; }
     body { padding-bottom: 72px; min-height: 100dvh; }
     header { padding: 14px 16px 8px; position: sticky; top: 0; z-index: 8;
       background: linear-gradient(180deg, var(--bg) 70%, transparent); }
@@ -45,7 +47,7 @@
       background: #3b82f622; border: 1px solid #3b82f655; color: #dbeafe; font-size: 13px; line-height: 1.55; }
     .banner.warn { background: #f5c15c18; border-color: #f5c15c55; color: var(--warn); }
     .hidden { display: none !important; }
-    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: flex; overflow-x: auto;
+    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: flex; overflow-x: auto; max-width: 100%;
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
       background: color-mix(in srgb, var(--card) 92%, #000); border-top: 1px solid var(--line);
       padding: 4px 2px calc(6px + env(safe-area-inset-bottom)); z-index: 20; backdrop-filter: blur(10px); }
@@ -207,6 +209,13 @@
       .errbox { background: #ea394318; border: 1px solid #ea394355; color: #fca5a5;
       border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.6; margin: 8px 0; }
     .theme-light .errbox { color: #b91c1c; }
+    @media (max-width: 400px) {
+      h1 { font-size: 16px; }
+      .pair-head .px { font-size: 18px; }
+      .tabs button { min-width: 52px; font-size: 9px; padding: 6px 5px; }
+      .panel { padding: 8px 10px 20px; }
+      header { padding: 12px 10px 8px; }
+    }
   </style>
 </head>
 <body>
@@ -2374,7 +2383,7 @@
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=14").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=15").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2400,6 +2409,6 @@
   window.__AJ_READY = true;
 })();
 </script>
-<script src="v14.js" defer></script>
+<script src="v15.js" defer></script>
 </body>
 </html>
