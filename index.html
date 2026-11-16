@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="description" content="لوحة أسعار حية لبوت Ajcoin" />
+  <title>لوحة الأسعار</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #141b24;
+      --card-2: #1a2330;
+      --line: #243044;
+      --text: #e8eef6;
+      --muted: #8b98a8;
+      --up: #26c281;
+      --down: #ef5350;
+      --accent: #f5c542;
+      --hint: #8b98a8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "IBM Plex Sans Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+      min-height: 100%;
+    }
+    body { padding: 16px 14px 28px; }
+    header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; margin-bottom: 16px;
+    }
+    h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+    .live {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 999px; padding: 6px 10px; font-size: 0.75rem; color: var(--muted);
+      white-space: nowrap;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 8px var(--up); }
+    .dot.err { background: var(--down); box-shadow: 0 0 8px var(--down); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 560px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card {
+      background: linear-gradient(180deg, var(--card-2), var(--card));
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 14px 10px;
+      min-height: 112px;
+    }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .sym { font-weight: 700; font-size: 1rem; }
+    .pair { color: var(--muted); font-size: 0.72rem; font-weight: 500; }
+    .chg {
+      font-size: 0.78rem; font-weight: 700; border-radius: 999px;
+      padding: 3px 8px; font-variant-numeric: tabular-nums;
+    }
+    .chg.up { color: var(--up); background: rgba(38,194,129,.12); }
+    .chg.down { color: var(--down); background: rgba(239,83,80,.12); }
+    .price {
+      font-size: 1.28rem; font-weight: 700; margin-top: 8px;
+      font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+    }
+    canvas { width: 100%; height: 44px; margin-top: 8px; display: block; }
+    .hint { color: var(--hint); font-size: 0.75rem; text-align: center; margin-top: 18px; line-height: 1.6; }
+    .errbox { color: var(--down); text-align: center; padding: 24px 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>لوحة الأسعار</h1>
+      <div class="sub" id="subtitle">أسعار حية · تتحدث تلقائيًا</div>
+    </div>
+    <div class="live"><span class="dot" id="dot"></span><span id="status">جاري التحميل</span></div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <p class="hint">الأرقام للعرض فقط وليست نصيحة استثمارية. المصدر: <span id="src">—</span> · آخر تحديث: <span id="when">—</span></p>
+
+  <script>
+    const COINS = [
+      { symbol: "BTC", pair: "BTC_USDT", bn: "BTCUSDT", cg: "bitcoin" },
+      { symbol: "ETH", pair: "ETH_USDT", bn: "ETHUSDT", cg: "ethereum" },
+      { symbol: "SOL", pair: "SOL_USDT", bn: "SOLUSDT", cg: "solana" },
+      { symbol: "BNB", pair: "BNB_USDT", bn: "BNBUSDT", cg: "binancecoin" },
+      { symbol: "XRP", pair: "XRP_USDT", bn: "XRPUSDT", cg: "ripple" },
+      { symbol: "DOGE", pair: "DOGE_USDT", bn: "DOGEUSDT", cg: "dogecoin" },
+      { symbol: "ADA", pair: "ADA_USDT", bn: "ADAUSDT", cg: "cardano" },
+      { symbol: "TON", pair: "TON_USDT", bn: "TONUSDT", cg: "the-open-network" },
+      { symbol: "AVAX", pair: "AVAX_USDT", bn: "AVAXUSDT", cg: "avalanche-2" },
+      { symbol: "LINK", pair: "LINK_USDT", bn: "LINKUSDT", cg: "chainlink" }
+    ];
+    const PAIR = Object.fromEntries(COINS.map(c => [c.pair, c]));
+    const BY_CG = Object.fromEntries(COINS.map(c => [c.cg, c]));
+    const BY_BN = Object.fromEntries(COINS.map(c => [c.bn, c]));
+
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) {
+      try {
+        tg.ready();
+        tg.expand();
+        const p = tg.themeParams || {};
+        const root = document.documentElement;
+        if (p.bg_color) root.style.setProperty("--bg", p.bg_color);
+        if (p.secondary_bg_color) {
+          root.style.setProperty("--card", p.secondary_bg_color);
+          root.style.setProperty("--card-2", p.secondary_bg_color);
+        }
+        if (p.text_color) root.style.setProperty("--text", p.text_color);
+        if (p.hint_color) {
+          root.style.setProperty("--muted", p.hint_color);
+          root.style.setProperty("--hint", p.hint_color);
+        }
+        if (p.hint_color) root.style.setProperty("--line", p.hint_color + "44");
+        const bg = p.bg_color || "#0b0f14";
+        try { tg.setHeaderColor(bg); } catch (e) {}
+        try { tg.setBackgroundColor(bg); } catch (e) {}
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", bg);
+      } catch (e) {}
+    }
+
+    const grid = document.getElementById("grid");
+    const status = document.getElementById("status");
+    const dot = document.getElementById("dot");
+    const when = document.getElementById("when");
+    const srcEl = document.getElementById("src");
+    const subtitle = document.getElementById("subtitle");
+    const sparks = {};
+    let lastSource = "";
+
+    function fmt(n) {
+      n = Number(n);
+      if (!isFinite(n)) return "—";
+      if (n >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+      if (n >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+      return n.toPrecision(4);
+    }
+
+    function drawSpark(canvas, values, up) {
+      if (!canvas || !values || values.length < 2) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (!w || !h) return;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      const min = Math.min(...values), max = Math.max(...values);
+      const span = max - min || 1;
+      ctx.clearRect(0, 0, w, h);
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = (i / (values.length - 1)) * w;
+        const y = h - 4 - ((v - min) / span) * (h - 8);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      });
+      const color = up ? getComputedStyle(document.documentElement).getPropertyValue("--up").trim() || "#26c281"
+                       : getComputedStyle(document.documentElement).getPropertyValue("--down").trim() || "#ef5350";
+      ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, up ? "rgba(38,194,129,.22)" : "rgba(239,83,80,.22)");
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grad; ctx.fill();
+    }
+
+    async function fetchJson(url, timeout) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeout || 12000);
+      try {
+        const r = await fetch(url, { signal: ctrl.signal });
+        if (!r.ok) throw new Error("http " + r.status);
+        return await r.json();
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    async function loadGateTickers() {
+      const data = await fetchJson("https://api.gateio.ws/api/v4/spot/tickers");
+      if (!Array.isArray(data)) throw new Error("bad gate");
+      const wanted = new Set(COINS.map(c => c.pair));
+      const out = [];
+      for (const t of data) {
+        if (!wanted.has(t.currency_pair)) continue;
+        const last = Number(t.last), chg = Number(t.change_percentage);
+        if (!isFinite(last)) continue;
+        const c = PAIR[t.currency_pair];
+        out.push({ symbol: c.symbol, pair: c.pair, last, change: isFinite(chg) ? chg : 0 });
+      }
+      if (!out.length) throw new Error("empty gate");
+      out.sort((a, b) => COINS.findIndex(c => c.symbol === a.symbol) - COINS.findIndex(c => c.symbol === b.symbol));
+      return out;
+    }
+
+    async function loadCgTickers() {
+      const ids = COINS.map(c => c.cg).join(",");
+      const data = await fetchJson("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=" + encodeURIComponent(ids) + "&price_change_percentage=24h&sparkline=true");
+      if (!Array.isArray(data) || !data.length) throw new Error("bad cg");
+      return data.map(row => {
+        const c = BY_CG[row.id];
+        if (!c) return null;
+        const spark = (((row.sparkline_in_7d || {}).price) || []).filter(v => isFinite(Number(v))).map(Number);
+        if (spark.length) sparks[c.pair] = spark;
+        return { symbol: c.symbol, pair: c.pair, last: Number(row.current_price), change: Number(row.price_change_percentage_24h || 0) };
+      }).filter(Boolean);
+    }
+
+    async function loadBnTickers() {
+      const symbols = encodeURIComponent(JSON.stringify(COINS.map(c => c.bn)));
+      const data = await fetchJson("https://data-api.binance.vision/api/v3/ticker/24hr?symbols=" + symbols);
+      const rows = Array.isArray(data) ? data : [data];
+      const out = rows.map(t => {
+        const c = BY_BN[t.symbol];
+        if (!c) return null;
+        return { symbol: c.symbol, pair: c.pair, last: Number(t.lastPrice), change: Number(t.priceChangePercent) };
+      }).filter(Boolean);
+      if (!out.length) throw new Error("empty binance");
+      return out;
+    }
+
+    async function loadTickers() {
+      const chain = [
+        { name: "Gate.io", fn: loadGateTickers },
+        { name: "CoinGecko", fn: loadCgTickers },
+        { name: "Binance", fn: loadBnTickers }
+      ];
+      let lastErr;
+      for (const src of chain) {
+        try {
+          const tickers = await src.fn();
+          if (tickers && tickers.length) return { source: src.name, tickers };
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr || new Error("all sources failed");
+    }
+
+    async function loadSparks(pair) {
+      if (sparks[pair] && sparks[pair].length > 2) {
+        const closes = sparks[pair];
+        const canvas = document.getElementById("sp-" + pair.replace("_", ""));
+        drawSpark(canvas, closes, closes[closes.length - 1] >= closes[0]);
+        return;
+      }
+      try {
+        const data = await fetchJson("https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=" + encodeURIComponent(pair) + "&interval=1h&limit=48");
+        const closes = (Array.isArray(data) ? data : []).map(x => Number(x[2])).filter(v => isFinite(v));
+        if (closes.length > 2) {
+          sparks[pair] = closes;
+          const canvas = document.getElementById("sp-" + pair.replace("_", ""));
+          drawSpark(canvas, closes, closes[closes.length - 1] >= closes[0]);
+          return;
+        }
+      } catch (e) {}
+      const coin = PAIR[pair];
+      if (coin) {
+        try {
+          const data = await fetchJson("https://data-api.binance.vision/api/v3/klines?symbol=" + coin.bn + "&interval=1h&limit=48");
+          const closes = (Array.isArray(data) ? data : []).map(x => Number(x[4])).filter(v => isFinite(v));
+          if (closes.length > 2) {
+            sparks[pair] = closes;
+            const canvas = document.getElementById("sp-" + pair.replace("_", ""));
+            drawSpark(canvas, closes, closes[closes.length - 1] >= closes[0]);
+          }
+        } catch (e) {}
+      }
+    }
+
+    function cardHTML(t) {
+      const id = t.pair.replace("_", "");
+      const up = t.change >= 0;
+      return `<article class="card" data-pair="${t.pair}">
+        <div class="row">
+          <div><div class="sym">${t.symbol}</div><div class="pair">${t.pair.replace("_", "/")}</div></div>
+          <div class="chg ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${up ? "+" : ""}${t.change.toFixed(2)}%</div>
+        </div>
+        <div class="price" id="px-${id}">${fmt(t.last)}</div>
+        <canvas id="sp-${id}"></canvas>
+      </article>`;
+    }
+
+    function paintTickers(tickers) {
+      tickers.forEach(t => {
+        const id = t.pair.replace("_", "");
+        const el = document.getElementById("px-" + id);
+        if (el) el.textContent = fmt(t.last);
+        const card = document.querySelector('[data-pair="' + t.pair + '"]');
+        if (card) {
+          const badge = card.querySelector(".chg");
+          const up = t.change >= 0;
+          badge.className = "chg " + (up ? "up" : "down");
+          badge.textContent = (up ? "▲ +" : "▼ ") + t.change.toFixed(2) + "%";
+        }
+      });
+    }
+
+    async function refresh(first) {
+      try {
+        const { source, tickers } = await loadTickers();
+        lastSource = source;
+        if (first) {
+          grid.innerHTML = tickers.map(cardHTML).join("");
+          tickers.forEach(t => loadSparks(t.pair));
+        } else {
+          paintTickers(tickers);
+        }
+        dot.classList.remove("err");
+        status.textContent = "مباشر";
+        srcEl.textContent = source;
+        subtitle.textContent = "أسعار حية من " + source + " · تتحدث تلقائيًا";
+        when.textContent = new Date().toLocaleTimeString("ar-EG", {
+          hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Aden"
+        }) + " آسيا/عدن";
+      } catch (e) {
+        dot.classList.add("err");
+        status.textContent = "انقطع التحديث";
+        if (first) grid.innerHTML = '<div class="errbox">تعذر تحميل الأسعار. حاول لاحقًا.</div>';
+      }
+    }
+
+    refresh(true);
+    setInterval(() => refresh(false), 15000);
+    setInterval(() => {
+      document.querySelectorAll(".card").forEach(c => {
+        const pair = c.dataset.pair;
+        delete sparks[pair];
+        loadSparks(pair);
+      });
+    }, 120000);
+  </script>
+</body>
+</html>
