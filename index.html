@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v16-team -->
+  <!-- ajcoin-miniapp v17-wallet -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -426,13 +426,14 @@
   </section>
 
   <section class="panel hidden" id="tab-portfolio">
-    <p class="hint soft">عناوين الإيداع تظهر مباشرة هنا عند فتح التطبيق من زر «المحفظة والتداول». الرصيد والأرباح يصلان في رسالة من البوت. لا حاجة للخروج إلى المحادثة لعرض العنوان.</p>
-    <div class="actions">
-      <button id="btn-port">عرض رصيدي والأرباح</button>
-      <button id="btn-bal">عرض رصيدي فقط</button>
+    <div id="wl-root"></div>
+    <div class="actions wl-chat-actions">
+      <button id="btn-port">📊 الرصيد والأرباح في المحادثة</button>
+      <button id="btn-bal">💬 الرصيد في المحادثة</button>
     </div>
     <div class="card" style="margin-top:8px">
-      <h3>عنوان الإيداع</h3>
+      <h3>📥 الإيداع</h3>
+      <div class="wl-coins" id="wl-coins"></div>
       <label class="f" for="dep-coin">العملة</label>
       <select id="dep-coin"></select>
       <div id="dep-other-box" class="hidden">
@@ -2396,7 +2397,7 @@
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=16").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=17").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2417,6 +2418,7 @@
     refreshSpotMin: refreshSpotMin, getPairMinQuote: getPairMinQuote, get spotMinQuote() { return spotMinQuote; },
     futMaxLev: contractMaxLev, fillFutSelect: fillFutSelect, updateFutEst: updateFutEst, loadTickers: loadTickers,
     encodeStartParam: encodeStartParam, syncTelegramChrome: syncTelegramChrome,
+    inflateRawBytes: inflateRawBytes, b64urlToBytes: b64urlToBytes,
     currentTab: function () { return currentTabName; }
   };
   window.__AJ_READY = true;
@@ -2424,5 +2426,6 @@
 </script>
 <script src="v15.js" defer></script>
 <script src="v16-team.js" defer></script>
+<script src="v17.js" defer></script>
 </body>
 </html>

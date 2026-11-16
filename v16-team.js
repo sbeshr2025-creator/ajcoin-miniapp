@@ -87,6 +87,7 @@
       var out = "sg_" + (p.market === "fut" ? "f" : "s") + "_" + sd + "_" + ss + "_" + su + "_" + lv + (rc ? "_" + rc : "");
       return out.length <= 64 ? out : null;
     }
+    if (a === "balance_refresh") return "balr";
     if (a === "team_list") return "tm_l";
     if (a === "team_add" || a === "team_remove") {
       var t = String(p.target || "").replace(/^@/, "").replace(/^u:/, "");
@@ -444,7 +445,7 @@
     if (role === "team") {
       state.snap = q.get("pp") ? b64json(q.get("pp")) : null;
       if (state.snap && typeof state.snap !== "object") state.snap = null;
-      addTab("xpaper", "🧪", "تجريبي", PAPER_HTML, "markets");
+      addTab("xpaper", "👛", "محفظتي", PAPER_HTML, "markets");
       $("sg-capS").textContent = capS(); $("sg-capF").textContent = capF();
       $("sg-reason").innerHTML = REASONS.map(function (r) { return '<option value="' + r[0] + '">' + esc(r[1]) + "</option>"; }).join("");
       bindSeg("pp-mkt", function (v) { if (v === "fut" && Number($("pp-amt").value) > 20) $("pp-amt").value = 5; updatePaperEst(); });
