@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v11-markets -->
+  <!-- ajcoin-miniapp v12-auto -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -45,10 +45,10 @@
       background: #3b82f622; border: 1px solid #3b82f655; color: #dbeafe; font-size: 13px; line-height: 1.55; }
     .banner.warn { background: #f5c15c18; border-color: #f5c15c55; color: var(--warn); }
     .hidden { display: none !important; }
-    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(8, 1fr);
+    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(9, 1fr);
       background: color-mix(in srgb, var(--card) 92%, #000); border-top: 1px solid var(--line);
       padding: 4px 2px calc(6px + env(safe-area-inset-bottom)); z-index: 20; backdrop-filter: blur(10px); }
-    .tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 9px;
+    .tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 8px;
       padding: 6px 0; border-radius: 10px; min-height: 48px; transition: background .15s, color .15s; }
     .tabs button.on { color: var(--text); background: #ffffff10; font-weight: 700; }
     .tabs button span { display: block; font-size: 16px; line-height: 1.1; }
@@ -59,6 +59,13 @@
     .row { display: grid; grid-template-columns: 28px 1fr auto auto; gap: 8px; align-items: center;
       background: var(--card); border-radius: 12px; padding: 10px 10px; border: 1px solid transparent; }
     .row:active, .row.on { border-color: #3b82f688; }
+
+    .auto-set { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .auto-set .f { margin: 0; }
+    .auto-set input { width: 100%; margin-top: 4px; padding: 8px 10px; border-radius: 10px;
+      border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; }
+    #auto-trend .row { grid-template-columns: 1fr auto auto; }
+
     .star { background: none; border: 0; color: var(--hint); font-size: 16px; padding: 0; }
     .star.on { color: var(--warn); }
     .sym { font-weight: 750; } .sym small { color: var(--muted); font-weight: 500; }
@@ -479,12 +486,50 @@
     </div>
   </section>
 
+
+  <section class="panel hidden" id="tab-auto">
+    <p class="hint soft">يراقب العملات الرائجة القابلة للارتفاع كل 5 دقائق، ويشتري فورياً بـ 3 USDT عند تجاوز العتبة، ثم يبيع تلقائياً (جني ربح / وقف خسارة / وقف متحرك / انعكاس الإشارة). متوقف افتراضياً. التشغيل يحتاج تأكيد ✅ مرة واحدة في المحادثة. العقود غير مشمولة.<br>⚠️ ليست نصيحة استثمارية.</p>
+    <div class="actions">
+      <button id="auto-on" style="background:var(--buy)">▶️ تشغيل (بتأكيد)</button>
+      <button id="auto-stop" style="background:var(--sell)">⛔ إيقاف فوري</button>
+    </div>
+    <div class="actions" style="margin-top:8px">
+      <button id="auto-status">📊 الحالة والصفقات</button>
+      <button id="auto-sellall">بيع كل الصفقات التلقائية</button>
+    </div>
+    <h3 style="margin:16px 0 8px;font-size:15px">الإعدادات</h3>
+    <div class="auto-set">
+      <label class="f">جني الربح %
+        <input id="auto-tp" type="number" inputmode="decimal" value="4" min="1.5" max="12" step="0.1" />
+      </label>
+      <label class="f">وقف الخسارة %
+        <input id="auto-sl" type="number" inputmode="decimal" value="2.5" min="1" max="8" step="0.1" />
+      </label>
+      <label class="f">تفعيل المتحرك بعد %
+        <input id="auto-arm" type="number" inputmode="decimal" value="2" min="1" max="8" step="0.1" />
+      </label>
+      <label class="f">مسافة المتحرك %
+        <input id="auto-trail" type="number" inputmode="decimal" value="1.5" min="0.5" max="5" step="0.1" />
+      </label>
+      <label class="f">أقصى مدة (ساعة)
+        <input id="auto-hold" type="number" inputmode="decimal" value="24" min="1" max="72" step="1" />
+      </label>
+    </div>
+    <button class="go" id="auto-save" style="background:var(--btn);margin-top:12px">حفظ الإعدادات في البوت</button>
+    <h3 style="margin:16px 0 8px;font-size:15px">العملات الرائجة (معاينة)</h3>
+    <p class="note">عرض حي من بيانات Gate العامة (حجم 24 ساعة ≥ 500 ألف USDT، بدون العملات المستقرة أو الرموز ذات الرافعة). القائمة الدقيقة بالدرجات تصل من البوت.</p>
+    <div class="actions"><button id="auto-scan">طلب القائمة الدقيقة من البوت</button></div>
+    <div id="auto-trend" class="mkt" style="margin-top:8px"></div>
+    <p class="note">حد الشراء 3 USDT، والحد اليومي المشترك 20 USDT، بحد 3 مراكز مفتوحة، وإيقاف الشراء عند خسارة يومية −3 USDT. السحب غير متاح من هذه الصفحة.</p>
+  </section>
+
   <nav class="tabs" id="tabs">
     <button data-tab="markets" class="on"><span>📉</span>الأسواق</button>
     <button data-tab="trade"><span>📈</span>تداول</button>
     <button data-tab="futures"><span>📜</span>عقود</button>
     <button data-tab="new"><span>✨</span>جديد</button>
     <button data-tab="smart"><span>🤖</span>ذكي</button>
+    <button data-tab="auto"><span>⚡</span>تلقائي</button>
     <button data-tab="orders"><span>🧾</span>أوامري</button>
     <button data-tab="portfolio"><span>👛</span>محفظة</button>
     <button data-tab="alerts"><span>🔔</span>تنبيه</button>
@@ -1090,6 +1135,10 @@
           tg.MainButton.setText("إرسال أمر العقود للتأكيد");
           tg.MainButton.show();
           try { tg.MainButton.setParams({ color: "#0d9488", text_color: "#ffffff" }); } catch (e) {}
+        } else if (name === "auto") {
+          tg.MainButton.setText("طلب حالة التداول التلقائي");
+          tg.MainButton.show();
+          try { tg.MainButton.setParams({ color: "#0d9488", text_color: "#ffffff" }); } catch (e) {}
         } else {
           tg.MainButton.hide();
         }
@@ -1097,7 +1146,7 @@
     } catch (e) {}
   }
   function showTab(name) {
-    ["markets", "trade", "futures", "new", "smart", "orders", "portfolio", "alerts"].forEach(t => {
+    ["markets", "trade", "futures", "new", "smart", "auto", "orders", "portfolio", "alerts"].forEach(t => {
       document.getElementById("tab-" + t).classList.toggle("hidden", t !== name);
       const b = document.querySelector('#tabs [data-tab="' + t + '"]');
       if (b) b.classList.toggle("on", t === name);
@@ -1107,6 +1156,7 @@
     }
     if (name === "futures") { try { loadFutures(); updateFutEst(); } catch (e) {} }
     if (name === "new") { try { loadNewListings(); } catch (e) {} }
+    if (name === "auto") { try { renderAutoTrend(); } catch (e) {} }
     syncTelegramChrome(name);
   }
   document.getElementById("tabs").addEventListener("click", ev => {
@@ -1121,9 +1171,11 @@
       const smartOn = !document.getElementById("tab-smart").classList.contains("hidden");
       const tradeOn = !document.getElementById("tab-trade").classList.contains("hidden");
       const futOn = !document.getElementById("tab-futures").classList.contains("hidden");
+      const autoOn = !document.getElementById("tab-auto").classList.contains("hidden");
       if (smartOn) document.getElementById("btn-ai").click();
       else if (tradeOn) document.getElementById("trade-btn").click();
       else if (futOn) document.getElementById("fut-open").click();
+      else if (autoOn) document.getElementById("auto-status").click();
     });
   } catch (e) {}
 
@@ -1315,6 +1367,25 @@
         fparts.push(fpx);
       }
       out = fparts.join("_");
+    } else if (a === "auto_on") out = "aon";
+    else if (a === "auto_off") out = "aof";
+    else if (a === "auto_stop") out = "astop";
+    else if (a === "auto_status") out = "ast";
+    else if (a === "auto_scan") out = "asc";
+    else if (a === "auto_sellall") out = "axa";
+    else if (a === "auto_settings") {
+      function n(v) {
+        v = Number(v);
+        if (!isFinite(v)) return null;
+        return String(Math.round(v * 100));
+      }
+      var tp = n(payload.tp_pct ?? payload.tp ?? 4);
+      var sl = n(payload.sl_pct ?? payload.sl ?? 2.5);
+      var ar = n(payload.trail_arm_pct ?? payload.trail_arm ?? 2);
+      var tr = n(payload.trail_pct ?? payload.trail ?? 1.5);
+      var ho = n(payload.max_hold_h ?? payload.hold ?? 24);
+      if (!tp || !sl || !ar || !tr || !ho) return null;
+      out = "aset_t" + tp + "_s" + sl + "_a" + ar + "_r" + tr + "_h" + ho;
     }
     if (!out || out.length > 64 || !/^[A-Za-z0-9_-]+$/.test(out)) return null;
     return out;
@@ -1506,7 +1577,8 @@
         if (!id.endsWith("_USDT")) return;
         tickers[id] = {
           last: Number(t.last), change: Number(t.change_percentage || 0),
-          quote: Number(t.quote_volume || 0), base: Number(t.base_volume || 0)
+          quote: Number(t.quote_volume || 0), base: Number(t.base_volume || 0),
+          ask: Number(t.lowest_ask || 0), bid: Number(t.highest_bid || 0)
         };
         TRADEABLE.add(id);
         if (!seen.has(id)) {
@@ -1517,7 +1589,7 @@
       if (next.length) allSpot = next;
       document.getElementById("dot").classList.remove("off");
       document.getElementById("src").textContent = "Gate.io";
-      renderMarkets(); renderHead(); updateEst();
+      renderMarkets(); renderHead(); updateEst(); try { renderAutoTrend(); } catch (e) {}
     } catch (e) {
       document.getElementById("dot").classList.add("off");
       toast("تعذر تحديث الأسعار حالياً", "err");
@@ -2177,6 +2249,52 @@
     }
   });
   bindSend("btn-new-wallet", () => sendAction({ action: "new_wallet" }));
+  const AUTO_STABLE = {USDT:1,USDC:1,DAI:1,FDUSD:1,TUSD:1,USDE:1,USD1:1,PYUSD:1,USDD:1,FRAX:1,GUSD:1,LUSD:1,RLUSD:1,EURC:1,BUSD:1,USDP:1,USDS:1};
+  function isAutoLev(sym) { return /(?:[235][LS]|BULL|BEAR)$/.test(String(sym || "").toUpperCase()); }
+  function renderAutoTrend() {
+    const box = document.getElementById("auto-trend");
+    if (!box) return;
+    const rows = (allSpot || []).map(r => {
+      const t = tickers[r.pair] || {};
+      return { symbol: r.symbol, pair: r.pair, last: t.last, change: t.change, quote: t.quote, ask: t.ask, bid: t.bid };
+    }).filter(r => {
+      if (!r.symbol || AUTO_STABLE[r.symbol] || isAutoLev(r.symbol)) return false;
+      if (!(r.quote >= 500000) || !(r.last > 0)) return false;
+      if (r.ask > 0 && r.bid > 0 && r.last > 0 && ((r.ask - r.bid) / r.last * 10000) > 30) return false;
+      return true;
+    }).sort((a, b) => (b.change || 0) - (a.change || 0)).slice(0, 15);
+    if (!rows.length) { box.innerHTML = '<p class="note">جارٍ تحميل الأسواق أو لا توجد عملات مطابقة حالياً.</p>'; return; }
+    box.innerHTML = rows.map(r => {
+      const up = (r.change || 0) >= 0;
+      const chg = (up ? "+" : "") + Number(r.change || 0).toFixed(2) + "%";
+      const vol = r.quote >= 1e6 ? (r.quote / 1e6).toFixed(1) + "M" : (r.quote / 1e3).toFixed(0) + "K";
+      return '<div class="row"><div><div class="sym">' + r.symbol + ' <small>USDT</small></div></div>'
+        + '<div class="chg ' + (up ? "up" : "down") + '">' + chg + '</div>'
+        + '<div class="muted" style="font-size:11px">' + vol + '</div></div>';
+    }).join("");
+  }
+  function autoSettingsPayload() {
+    function clip(id, lo, hi, fb) {
+      var v = parseFloat(document.getElementById(id).value);
+      if (!isFinite(v)) v = fb;
+      return Math.max(lo, Math.min(hi, v));
+    }
+    return {
+      action: "auto_settings",
+      tp_pct: clip("auto-tp", 1.5, 12, 4),
+      sl_pct: clip("auto-sl", 1, 8, 2.5),
+      trail_arm_pct: clip("auto-arm", 1, 8, 2),
+      trail_pct: clip("auto-trail", 0.5, 5, 1.5),
+      max_hold_h: clip("auto-hold", 1, 72, 24)
+    };
+  }
+  bindSend("auto-on", () => sendAction({ action: "auto_on" }));
+  bindSend("auto-stop", () => sendAction({ action: "auto_stop" }));
+  bindSend("auto-status", () => sendAction({ action: "auto_status" }));
+  bindSend("auto-sellall", () => sendAction({ action: "auto_sellall" }));
+  bindSend("auto-scan", () => sendAction({ action: "auto_scan" }));
+  bindSend("auto-save", () => sendAction(autoSettingsPayload()));
+
 
   initDepositStore();
   loadTickers(); loadCandles(); loadBook(); loadTrades();
