@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v7-deposit -->
+  <!-- ajcoin-miniapp v8-deposit -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -159,6 +159,8 @@
       border: 1px solid var(--line); background: var(--card-2); color: var(--text); font: inherit; font-weight: 650; font-size: 12px; }
     .dep-item .rowbtns button { flex: 1; }
     .btn-mini.refresh { border-color: #f5c15c55; color: var(--warn); }
+    .dep-missing { margin-top: 12px; }
+    .dep-missing .btn-mini { width: 100%; margin-top: 8px; background: var(--bg); color: var(--muted); font-weight: 600; }
   </style>
 </head>
 <body>
@@ -281,7 +283,7 @@
   </section>
 
   <section class="panel hidden" id="tab-portfolio">
-    <p class="hint soft">الرصيد والأرباح يصلان في رسالة من البوت. عناوين الإيداع تُحفظ على جهازك داخل تيليجرام وتظهر هنا مباشرة. إن لم يكن العنوان محفوظاً بعد، اطلبه فيُعرض بزر داخل التطبيق.</p>
+    <p class="hint soft">عناوين الإيداع تظهر مباشرة هنا عند فتح التطبيق من زر «المحفظة والتداول». الرصيد والأرباح يصلان في رسالة من البوت. لا حاجة للخروج إلى المحادثة لعرض العنوان.</p>
     <div class="actions">
       <button id="btn-port">عرض رصيدي والأرباح</button>
       <button id="btn-bal">عرض رصيدي فقط</button>
@@ -309,12 +311,15 @@
           <button type="button" class="btn-mini refresh hidden" id="dep-inline-refresh">تحديث</button>
         </div>
       </div>
-      <button class="go" id="dep-btn" style="background:var(--btn);margin-top:12px">طلب عنوان الإيداع</button>
+      <div id="dep-missing" class="dep-missing hidden">
+        <p class="hint soft">لا يتوفر عنوان إيداع لهذه العملة والشبكة حالياً.</p>
+        <button type="button" class="btn-mini" id="dep-btn">طلب العنوان من البوت</button>
+      </div>
       <p class="note">⚠️ السحب غير متاح من البوت أو هذه الصفحة. إذا أردت سحب رصيدك فاستخدم تطبيق Gate.io مباشرة.</p>
     </div>
     <div class="card" style="margin-top:12px">
       <h3>عناوين الإيداع</h3>
-      <div id="dep-saved-list" class="dep-saved"><div class="empty">لا يوجد عنوان محفوظ بعد. اطلب عنواناً من النموذج أعلاه.</div></div>
+      <div id="dep-saved-list" class="dep-saved"><div class="empty">لا توجد عناوين محفوظة بعد. افتح التطبيق من زر المحفظة والتداول أسفل الشاشة.</div></div>
     </div>
   </section>
 
@@ -504,6 +509,54 @@
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new TextDecoder("utf-8").decode(bytes);
   }
+  function b64urlToBytes(s) {
+    s = String(s || "").replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    const bin = atob(s);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+  async function inflateRawBytes(bytes) {
+    if (typeof DecompressionStream !== "function") throw new Error("no-decompress");
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    const buf = await new Response(stream).arrayBuffer();
+    return new TextDecoder("utf-8").decode(buf);
+  }
+  function expandDepsPayload(data) {
+    const out = [];
+    let t0 = 0;
+    let rows = data;
+    if (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.d)) {
+      t0 = Number(data.t || 0) || 0;
+      rows = data.d;
+    }
+    (rows || []).forEach(row => {
+      let info = null;
+      if (Array.isArray(row)) {
+        info = normalizeDep([row[0], row[1], row[2], row[3] || "", row[4] || t0]);
+        if (info && !info.t) info.t = t0;
+      } else {
+        info = normalizeDep(row);
+        if (info && !info.t) info.t = t0;
+      }
+      if (info) out.push(info);
+    });
+    if (!out.length && data && data.c) {
+      const one = normalizeDep(data);
+      if (one) out.push(one);
+    }
+    return out;
+  }
+  async function decodeDepsFragment(frag) {
+    const s = String(frag || "");
+    if (!s) return [];
+    if (s.charAt(0) === "z") {
+      const text = await inflateRawBytes(b64urlToBytes(s.slice(1)));
+      return expandDepsPayload(JSON.parse(text));
+    }
+    return expandDepsPayload(JSON.parse(b64urlDecode(s)));
+  }
   async function copyText(value, label) {
     try {
       await navigator.clipboard.writeText(value);
@@ -666,6 +719,7 @@
   }
   function syncInlineDep() {
     const box = document.getElementById("dep-inline");
+    const missing = document.getElementById("dep-missing");
     if (!box) return;
     const c = (document.getElementById("dep-coin") || {}).value || "";
     const n = (document.getElementById("dep-chain") || {}).value || "";
@@ -673,9 +727,11 @@
     const btn = document.getElementById("dep-btn");
     if (!info) {
       box.classList.add("hidden");
-      if (btn) btn.textContent = "طلب عنوان الإيداع";
+      if (missing) missing.classList.remove("hidden");
+      if (btn) btn.textContent = "طلب العنوان من البوت";
       return;
     }
+    if (missing) missing.classList.add("hidden");
     box.classList.remove("hidden");
     document.getElementById("dep-inline-a").textContent = info.a || "";
     renderQr(document.getElementById("dep-inline-qr"), info.a || "");
@@ -685,7 +741,6 @@
     document.getElementById("dep-inline-warn").textContent = depWarn(info);
     const stale = isDepStale(info, DEP_WEEK);
     document.getElementById("dep-inline-refresh").classList.toggle("hidden", !stale);
-    if (btn) btn.textContent = stale ? "طلب عنوان محدّث من البوت" : "طلب عنوان محدّث (اختياري)";
   }
   function renderSavedDeps() {
     const host = document.getElementById("dep-saved-list");
@@ -696,7 +751,7 @@
     if (!items.length) {
       const empty = document.createElement("div");
       empty.className = "empty";
-      empty.textContent = "لا يوجد عنوان محفوظ بعد. اطلب عنواناً من النموذج أعلاه.";
+      empty.textContent = "لا توجد عناوين محفوظة بعد. افتح التطبيق من زر المحفظة والتداول أسفل الشاشة.";
       host.appendChild(empty);
       return;
     }
@@ -759,33 +814,33 @@
     await loadDepStore();
     const { m1, m2 } = consumeDepHash();
     let opened = null;
+    let packed = false;
     try {
       if (m1) {
         const info = normalizeDep(JSON.parse(b64urlDecode(m1[1])));
-        if (!info) { toast("طلب الإيداع غير مكتمل. اطلب العنوان من جديد.", "err"); }
+        if (!info) { toast("تعذر قراءة عنوان الإيداع.", "err"); }
         else {
           await saveDepInfos([info]);
           opened = info;
         }
       } else if (m2) {
-        const data = JSON.parse(b64urlDecode(m2[1]));
-        const list = Array.isArray(data) ? data : [data];
-        const norms = list.map(normalizeDep).filter(Boolean);
-        if (!norms.length) { toast("طلب الإيداع غير مكتمل. اطلب العنوان من جديد.", "err"); }
+        const norms = await decodeDepsFragment(m2[1]);
+        if (!norms.length) { toast("تعذر قراءة عناوين الإيداع.", "err"); }
         else {
+          packed = true;
           await saveDepInfos(norms);
           if (norms.length === 1) opened = norms[0];
         }
       }
     } catch (e) {
-      toast("تعذر قراءة عنوان الإيداع. اطلب العنوان من جديد.", "err");
+      toast("تعذر قراءة عنوان الإيداع.", "err");
     }
     renderSavedDeps();
     syncInlineDep();
     if (opened) {
       showTab("portfolio");
       openDepView(opened);
-    } else if (m2) {
+    } else if (packed || (walletMode && Object.keys(depStore).length)) {
       showTab("portfolio");
     }
   }
