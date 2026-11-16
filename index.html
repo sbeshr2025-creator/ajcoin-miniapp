@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v13-auto -->
+  <!-- ajcoin-miniapp v14-auto -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -1137,8 +1137,10 @@
       showTab("portfolio");
     }
   }
+  let currentTabName = "markets";
   function syncTelegramChrome(name) {
     try {
+      if (window.AjSheet && AjSheet.isOpen()) { AjSheet.syncChrome(); return; }
       if (!tg) return;
       if (tg.BackButton) {
         if (name !== "markets") { tg.BackButton.show(); }
@@ -1168,6 +1170,7 @@
     } catch (e) {}
   }
   function showTab(name) {
+    currentTabName = name;
     ["markets", "trade", "futures", "new", "smart", "auto", "orders", "portfolio", "alerts"].forEach(t => {
       const panel = document.getElementById("tab-" + t);
       if (panel) {
@@ -1206,8 +1209,13 @@
     try { window.__AJ_READY = true; window.__AJ_TAB = start; } catch (e) {}
   })();
   try {
-    if (tg && tg.BackButton) tg.BackButton.onClick(() => { haptic("light"); showTab("markets"); });
+    if (tg && tg.BackButton) tg.BackButton.onClick(() => {
+      if (window.AjCmd && AjCmd.isOpen()) { AjCmd.close(); return; }
+      if (window.AjSheet && AjSheet.isOpen()) { AjSheet.close(); return; }
+      haptic("light"); showTab("markets");
+    });
     if (tg && tg.MainButton) tg.MainButton.onClick(() => {
+      if (window.AjSheet && AjSheet.isOpen()) { AjSheet.confirm(); return; }
       haptic("medium");
       const smartOn = !document.getElementById("tab-smart").classList.contains("hidden");
       const tradeOn = !document.getElementById("tab-trade").classList.contains("hidden");
@@ -1415,7 +1423,15 @@
     else if (a === "auto_scan") out = "asc";
     else if (a === "auto_sellall") out = "axa";
     else if (a === "auto_paper") out = payload.enabled ? "apm_on" : "apm_off";
-    else if (a === "auto_settings") {
+    else if (a === "auto_watch" || a === "auto_exclude") {
+      var wsym = baseSym(payload.symbol || payload.pair || payload.coin || "");
+      if (!/^[A-Z0-9]{1,20}$/.test(wsym || "")) return null;
+      var won = payload.enabled;
+      if (typeof won === "string") won = !/^(0|false|off|no|remove)$/i.test(won);
+      if (won === undefined || won === null) won = true;
+      if (a === "auto_watch") out = (won ? "aw_" : "awx_") + wsym;
+      else out = (won ? "ax_" : "axx_") + wsym;
+    } else if (a === "auto_settings") {
       function n(v) {
         v = Number(v);
         if (!isFinite(v)) return null;
@@ -2320,7 +2336,7 @@
       const up = (r.change || 0) >= 0;
       const chg = (up ? "+" : "") + Number(r.change || 0).toFixed(2) + "%";
       const vol = r.quote >= 1e6 ? (r.quote / 1e6).toFixed(1) + "M" : (r.quote / 1e3).toFixed(0) + "K";
-      return '<div class="row"><div><div class="sym">' + r.symbol + ' <small>USDT</small></div></div>'
+      return '<div class="row" data-atrend="' + r.pair + '"><div><div class="sym">' + r.symbol + ' <small>USDT</small></div></div>'
         + '<div class="chg ' + (up ? "up" : "down") + '">' + chg + '</div>'
         + '<div class="muted" style="font-size:11px">' + vol + '</div></div>';
     }).join("");
@@ -2352,19 +2368,38 @@
 
   initDepositStore();
   loadTickers(); loadCandles(); loadBook(); loadTrades();
-  setInterval(loadTickers, 12000);
+  setInterval(function () { try { loadTickers(); } catch (e) {} }, 20000);
   setInterval(loadBook, 4000);
   setInterval(loadTrades, 5000);
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=13").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=14").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
     }
   } catch (e) {}
+  window.Aj = {
+    GATE: GATE, TRADE_CAP: TRADE_CAP, FUT_CAP: FUT_CAP, FUT_MAX_LEV: FUT_MAX_LEV, BOT_USER: BOT_USER,
+    get tg() { return tg; },
+    get tickers() { return tickers; },
+    get allSpot() { return allSpot; },
+    get allFut() { return allFut; },
+    get futSpecs() { return futSpecs; },
+    get futTickers() { return futTickers; },
+    get favs() { return favs; },
+    get pair() { return pair; },
+    selectPair: selectPair, showTab: showTab, sendAction: sendAction, toast: toast, haptic: haptic,
+    fmt: fmt, volFmt: volFmt, baseSym: baseSym, encNum: encNum, loadFutures: loadFutures,
+    refreshSpotMin: refreshSpotMin, getPairMinQuote: getPairMinQuote, get spotMinQuote() { return spotMinQuote; },
+    futMaxLev: contractMaxLev, fillFutSelect: fillFutSelect, updateFutEst: updateFutEst, loadTickers: loadTickers,
+    encodeStartParam: encodeStartParam, syncTelegramChrome: syncTelegramChrome,
+    currentTab: function () { return currentTabName; }
+  };
+  window.__AJ_READY = true;
 })();
 </script>
+<script src="v14.js" defer></script>
 </body>
 </html>
