@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v15-auto -->
+  <!-- ajcoin-miniapp v16-team -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -1322,6 +1322,12 @@
     return s.replace(".", "p");
   }
   function encodeStartParam(payload) {
+    try {
+      if (typeof window.AjEncodeHook === "function") {
+        var hooked = window.AjEncodeHook(payload);
+        if (hooked) return hooked;
+      }
+    } catch (e) {}
     var a = payload && payload.action;
     var out = null;
     if (a === "balance") out = "bal";
@@ -1479,6 +1485,13 @@
     return false;
   }
   function sendAction(payload) {
+    try {
+      if (typeof window.AjRoleHook === "function") {
+        var mapped = window.AjRoleHook(payload);
+        if (mapped === false) return false;
+        if (mapped && typeof mapped === "object") payload = mapped;
+      }
+    } catch (e) {}
     // sendData يعمل فقط إذا فُتح التطبيق من زر لوحة الكتابة. زر القائمة/الروابط الأخرى تتجاهله دون خطأ.
     if (launchedFromKeyboard() && tg && typeof tg.sendData === "function") {
       try {
@@ -2383,7 +2396,7 @@
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=15").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=16").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2410,5 +2423,6 @@
 })();
 </script>
 <script src="v15.js" defer></script>
+<script src="v16-team.js" defer></script>
 </body>
 </html>
