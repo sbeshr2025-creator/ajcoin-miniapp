@@ -14,9 +14,10 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v5-smart -->
+  <!-- ajcoin-miniapp v6-deposit -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <style>
     :root {
       --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
@@ -115,6 +116,35 @@
     .row { transition: border-color .15s, background .15s; min-height: 56px; }
     input, select { min-height: 44px; }
     .hint.soft { background: var(--card); border-radius: 12px; padding: 10px 12px; }
+
+    body { line-height: 1.55; }
+    h1 { letter-spacing: -0.01em; }
+    .panel { padding: 10px 16px 24px; }
+    .toast { position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+      background: #0f1720; color: var(--text); border: 1px solid var(--line); padding: 10px 16px; border-radius: 999px;
+      font-size: 13px; z-index: 40; box-shadow: 0 8px 24px #0008; max-width: 90%; text-align: center;
+      animation: fadein .18s ease; }
+    .toast.err { border-color: #ea394355; color: #fca5a5; }
+    .toast.ok { border-color: #16c78455; }
+    .overlay { position: fixed; inset: 0; background: #00000099; z-index: 30; display: flex; align-items: flex-end;
+      justify-content: center; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); backdrop-filter: blur(6px);
+      animation: fadein .2s ease; }
+    .dep-card { width: 100%; max-width: 440px; background: var(--card); border: 1px solid var(--line);
+      border-radius: 18px; padding: 18px 16px 16px; max-height: 90dvh; overflow: auto; }
+    .dep-card h2 { margin: 0 0 10px; font-size: 18px; }
+    .dep-card .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .dep-card .pill { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
+    .qrbox { direction: ltr; background: #fff; border-radius: 14px; padding: 12px; display: flex; justify-content: center; margin: 10px 0 12px; }
+    .qrbox svg, .qrbox img { width: 200px; height: 200px; }
+    .addrbox { direction: ltr; text-align: left; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px; line-height: 1.5; word-break: break-all; white-space: pre-wrap; background: var(--bg);
+      border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+    .copyrow { display: flex; gap: 8px; margin: 8px 0 12px; }
+    .copyrow button { flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--bg); color: var(--text); font: inherit; font-weight: 650; }
+    .empty { text-align: center; color: var(--muted); padding: 28px 12px; font-size: 13px; }
+    .warn-line { background: #f5c15c18; border: 1px solid #f5c15c55; color: var(--warn);
+      border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.6; margin: 8px 0 0; }
   </style>
 </head>
 <body>
@@ -129,6 +159,29 @@
       <div class="chg" id="head-chg"></div>
     </div>
   </header>
+
+  
+  <div id="toast" class="toast hidden" role="status"></div>
+  <div id="dep-view" class="overlay hidden" role="dialog" aria-labelledby="dep-title">
+    <div class="dep-card">
+      <h2 id="dep-title">إيداع</h2>
+      <div id="dep-stale" class="banner warn hidden">مضى أكثر من 24 ساعة على هذا العنوان. اطلب العنوان من جديد.</div>
+      <div class="meta">
+        <span class="pill" id="dep-c">—</span>
+        <span class="pill" id="dep-n">—</span>
+      </div>
+      <div class="qrbox" id="dep-qr"></div>
+      <div class="addrbox" id="dep-a"></div>
+      <div class="copyrow"><button type="button" id="dep-copy-a">نسخ العنوان</button></div>
+      <div id="dep-memo-box" class="hidden">
+        <p class="warn-line">يجب إضافة الـ Memo/Tag كما هو ظاهر تماماً، وإلا قد لا يصل التحويل.</p>
+        <div class="addrbox" id="dep-m" style="margin-top:8px"></div>
+        <div class="copyrow"><button type="button" id="dep-copy-m">نسخ الـ Memo</button></div>
+      </div>
+      <p class="warn-line" id="dep-warn"></p>
+      <button class="go" id="dep-close" style="background:var(--btn);margin-top:12px">إغلاق</button>
+    </div>
+  </div>
 
   <section class="panel" id="tab-markets">
     <input class="search" id="search" type="search" placeholder="ابحث عن عملة…" inputmode="search" />
@@ -214,7 +267,7 @@
   </section>
 
   <section class="panel hidden" id="tab-portfolio">
-    <p class="hint">الرصيد والأرباح يُعرضان في رسالة من البوت بعد الطلب. لا تُخزَّن أرصدة أو عناوين في هذه الصفحة.</p>
+    <p class="hint soft">الرصيد والأرباح يصلان في رسالة من البوت. بعد طلب الإيداع يصلك العنوان في المحادثة وزر لعرضه هنا مع رمز QR. لا تُخزَّن عناوين في الصفحة.</p>
     <div class="actions">
       <button id="btn-port">عرض رصيدي والأرباح</button>
       <button id="btn-bal">عرض رصيدي فقط</button>
@@ -397,6 +450,96 @@
       else tg.HapticFeedback.impactOccurred(kind || "light");
     } catch (e) {}
   }
+
+  function toast(msg, kind) {
+    const el = document.getElementById("toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.className = "toast " + (kind === "err" ? "err" : "ok");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.add("hidden"), 2400);
+  }
+  function b64urlDecode(s) {
+    s = String(s || "").replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    const bin = atob(s);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+  async function copyText(value, label) {
+    try {
+      await navigator.clipboard.writeText(value);
+      haptic("ok");
+      toast("تم نسخ " + (label || "النص"));
+    } catch (e) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = value; document.body.appendChild(ta); ta.select();
+        document.execCommand("copy"); ta.remove();
+        haptic("ok"); toast("تم نسخ " + (label || "النص"));
+      } catch (e2) {
+        haptic("light"); toast("تعذر النسخ", "err");
+      }
+    }
+  }
+  function chainLabel(id) {
+    const list = Object.values(CHAINS).flat();
+    const hit = list.find(x => x.id === id);
+    return hit ? hit.label : (id || "—");
+  }
+  function renderQr(el, text) {
+    el.innerHTML = "";
+    if (!text || typeof qrcode !== "function") {
+      el.innerHTML = "<div class='empty'>تعذر إنشاء رمز QR</div>";
+      return;
+    }
+    try {
+      const qr = qrcode(0, "M");
+      qr.addData(text);
+      qr.make();
+      el.innerHTML = qr.createSvgTag(5, 2);
+    } catch (e) {
+      el.innerHTML = "<div class='empty'>تعذر إنشاء رمز QR</div>";
+    }
+  }
+  function closeDepView() {
+    document.getElementById("dep-view").classList.add("hidden");
+  }
+  function openDepView(info) {
+    const view = document.getElementById("dep-view");
+    const stale = document.getElementById("dep-stale");
+    const age = info.t ? (Date.now() / 1000 - Number(info.t)) : 0;
+    const old = age > 24 * 3600;
+    stale.classList.toggle("hidden", !old);
+    document.getElementById("dep-c").textContent = info.c || "—";
+    document.getElementById("dep-n").textContent = chainLabel(info.n) + (info.n ? " · " + info.n : "");
+    document.getElementById("dep-a").textContent = info.a || "";
+    const memoBox = document.getElementById("dep-memo-box");
+    const hasMemo = !!(info.m && String(info.m).trim());
+    memoBox.classList.toggle("hidden", !hasMemo);
+    document.getElementById("dep-m").textContent = hasMemo ? info.m : "";
+    document.getElementById("dep-warn").textContent = "أرسل فقط " + (info.c || "هذه العملة") + " عبر شبكة " + (chainLabel(info.n) || info.n || "المحددة") + "، وإلا قد تضيع الأموال.";
+    renderQr(document.getElementById("dep-qr"), info.a || "");
+    view.classList.remove("hidden");
+    haptic("sel");
+  }
+  function consumeDepHash() {
+    const hash = location.hash || "";
+    const m = hash.match(/^#dep=([A-Za-z0-9_-]+)$/);
+    try {
+      const clean = location.pathname + location.search;
+      if (location.hash) history.replaceState(null, "", clean);
+    } catch (e) {}
+    if (!m) return;
+    try {
+      const info = JSON.parse(b64urlDecode(m[1]));
+      if (!info || !info.a || !info.c) { toast("طلب الإيداع غير مكتمل. اطلب العنوان من جديد.", "err"); return; }
+      openDepView({ c: info.c, n: info.n || "", a: info.a, m: info.m || "", t: info.t || 0 });
+    } catch (e) {
+      toast("تعذر قراءة عنوان الإيداع. اطلب العنوان من جديد.", "err");
+    }
+  }
   function syncTelegramChrome(name) {
     try {
       if (!tg) return;
@@ -464,9 +607,24 @@
   const depCoin = document.getElementById("dep-coin");
   const depChain = document.getElementById("dep-chain");
   DEPOSIT_COINS.forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = s; depCoin.appendChild(o); });
+  function applyChainOptions(list) {
+    depChain.innerHTML = (list || []).map(c => '<option value="' + c.id + '">' + c.label + "</option>").join("");
+    if (!depChain.options.length) depChain.innerHTML = "<option value=''>لا توجد شبكة متاحة</option>";
+  }
   function fillChains() {
-    const list = CHAINS[depCoin.value] || [];
-    depChain.innerHTML = list.map(c => '<option value="' + c.id + '">' + c.label + "</option>").join("");
+    const cur = depCoin.value;
+    applyChainOptions(CHAINS[cur] || []);
+    fetch(GATE + "/wallet/currency_chains?currency=" + encodeURIComponent(cur))
+      .then(r => { if (!r.ok) throw new Error("http"); return r.json(); })
+      .then(data => {
+        if (!Array.isArray(data) || !data.length) return;
+        const list = data.filter(x => x && !x.is_disabled && !x.is_deposit_disabled).map(x => ({
+          id: String(x.chain || ""),
+          label: String(x.name_en || x.chain || "")
+        })).filter(x => x.id);
+        if (list.length) applyChainOptions(list);
+      })
+      .catch(() => { /* Gate currency_chains has no CORS; keep static map */ });
   }
   depCoin.addEventListener("change", fillChains); fillChains();
   const alCoin = document.getElementById("al-coin");
@@ -725,6 +883,7 @@
       renderMarkets(); renderHead(); updateEst();
     } catch (e) {
       document.getElementById("dot").classList.add("off");
+      toast("تعذر تحديث الأسعار حالياً", "err");
     }
   }
   function renderHead() {
@@ -746,6 +905,7 @@
       return (TRADEABLE.has(b.pair) - TRADEABLE.has(a.pair)) || a.symbol.localeCompare(b.symbol);
     });
     const box = document.getElementById("mkt");
+    if (!rows.length) { box.innerHTML = "<div class='empty'>لا توجد نتائج مطابقة.</div>"; return; }
     box.innerHTML = rows.map(p => {
       const t = tickers[p.pair] || {};
       const up = (t.change || 0) >= 0;
@@ -919,6 +1079,11 @@
     }
   }
 
+  document.getElementById("dep-close").addEventListener("click", () => { haptic("light"); closeDepView(); });
+  document.getElementById("dep-copy-a").addEventListener("click", () => copyText(document.getElementById("dep-a").textContent, "العنوان"));
+  document.getElementById("dep-copy-m").addEventListener("click", () => copyText(document.getElementById("dep-m").textContent, "الـ Memo"));
+  document.getElementById("dep-view").addEventListener("click", ev => { if (ev.target.id === "dep-view") closeDepView(); });
+  consumeDepHash();
   loadTickers(); loadCandles(); loadBook(); loadTrades();
   setInterval(loadTickers, 12000);
   setInterval(loadBook, 4000);
