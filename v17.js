@@ -194,6 +194,7 @@
     bindHero();
   }
   function bindHero() {
+    try { document.dispatchEvent(new CustomEvent("aj:bal")); } catch (x) {}
     var r = $("wl-refresh"), e = $("wl-eye");
     if (r) r.onclick = function () {
       haptic("ok"); r.classList.add("spin");
@@ -240,7 +241,12 @@
       var req = String(q.get("tab") || "").toLowerCase();
       if (req === "portfolio") { try { Aj().showTab("portfolio"); } catch (e) {} }
     }
-    window.AjV17 = { snap: function () { return S.snap ? { t: S.snap.t, coins: (S.snap.s || []).length } : null; } };
+    window.AjV17 = {
+      snap: function () { return S.snap ? { t: S.snap.t, coins: (S.snap.s || []).length } : null; },
+      total: function () { return role() === "owner" && S.snap && isFinite(Number(S.snap.T)) ? Number(S.snap.T) : null; },
+      hidden: function () { return !!S.hide; }
+    };
+    try { document.dispatchEvent(new CustomEvent("aj:bal")); } catch (x) {}
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { setTimeout(boot, 0); });
   else setTimeout(boot, 0);
