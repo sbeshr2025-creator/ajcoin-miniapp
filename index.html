@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v10.1-caps -->
+  <!-- ajcoin-miniapp v11-markets -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -45,7 +45,7 @@
       background: #3b82f622; border: 1px solid #3b82f655; color: #dbeafe; font-size: 13px; line-height: 1.55; }
     .banner.warn { background: #f5c15c18; border-color: #f5c15c55; color: var(--warn); }
     .hidden { display: none !important; }
-    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(7, 1fr);
+    .tabs { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(8, 1fr);
       background: color-mix(in srgb, var(--card) 92%, #000); border-top: 1px solid var(--line);
       padding: 4px 2px calc(6px + env(safe-area-inset-bottom)); z-index: 20; backdrop-filter: blur(10px); }
     .tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 9px;
@@ -178,7 +178,23 @@
     .fut-row .meta { font-size: 11px; color: var(--muted); direction: ltr; text-align: left; }
     .levs { display: flex; gap: 6px; margin: 6px 0; }
     .levs button { flex: 1; }
-    .errbox { background: #ea394318; border: 1px solid #ea394355; color: #fca5a5;
+
+    .mkt-wrap, .fut-wrap, .new-wrap { height: calc(100dvh - 220px); min-height: 240px; overflow: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }
+    .mkt, .fut-list, .new-list { position: relative; }
+    .row.abs, .fut-row.abs, .new-row.abs { position: absolute; left: 0; right: 0; }
+    .row.abs { height: 56px; }
+    .fut-row.abs, .new-row.abs { height: 62px; }
+    .mkt-tools, .fut-tools { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+    .mkt-count { font-size: 11px; color: var(--muted); margin-inline-start: auto; }
+    .risk { background: #ea394318; border: 1px solid #ea394355; color: #fca5a5;
+      border-radius: 12px; padding: 10px 12px; font-size: 12px; line-height: 1.6; margin: 8px 0; }
+    .theme-light .risk { color: #b91c1c; }
+    .new-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;
+      background: var(--card); border-radius: 12px; padding: 8px 10px; border: 1px solid transparent; }
+    .new-row.held { border-color: #f5c15c88; }
+    .new-row .when { font-size: 11px; color: var(--muted); }
+    .pill.held { background: #f5c15c22; color: var(--warn); border: 1px solid #f5c15c55; }
+      .errbox { background: #ea394318; border: 1px solid #ea394355; color: #fca5a5;
       border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.6; margin: 8px 0; }
     .theme-light .errbox { color: #b91c1c; }
   </style>
@@ -221,8 +237,19 @@
   </div>
 
   <section class="panel" id="tab-markets">
-    <input class="search" id="search" type="search" placeholder="ابحث عن عملة…" inputmode="search" />
-    <div class="mkt" id="mkt"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    <input class="search" id="search" type="search" placeholder="ابحث عن أي زوج USDT…" inputmode="search" />
+    <div class="mkt-tools">
+      <div class="seg" id="mkt-sort">
+        <button data-ms="vol" class="on">الحجم</button>
+        <button data-ms="chg">التغيّر</button>
+        <button data-ms="name">الاسم</button>
+        <button data-ms="fav">المفضلة</button>
+      </div>
+      <span class="mkt-count" id="mkt-count"></span>
+    </div>
+    <div class="mkt-wrap" id="mkt-wrap">
+      <div class="mkt" id="mkt"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    </div>
   </section>
 
   <section class="panel hidden" id="tab-trade">
@@ -288,8 +315,12 @@
 
 
   <section class="panel hidden" id="tab-futures">
-    <p class="hint soft">عقود آجلة بهامش USDT من Gate.io. الأسعار والتمويل من الواجهة العامة. الفتح والإغلاق والإلغاء يصل إلى البوت ويحتاج موافقتك ✅ خلال 60 ثانية. حد الهامش 1 USDT للصفقة، والرافعة حتى 5x (الافتراضي 2x). السحب غير متاح هنا.</p>
-    <div class="fut-list" id="fut-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    <p class="hint soft">عقود آجلة بهامش USDT من Gate.io. القائمة تعرض كل العقود المتاحة مع بحث سريع. حد الهامش 1 USDT، والرافعة حتى 20x (الافتراضي 2x، وبحسب حد كل عقد). عند اختيار أكثر من 5x يظهر تحذير تصفية. كل طلب يحتاج ✅ خلال 60 ثانية. السحب غير متاح هنا.</p>
+    <input class="search" id="fut-search" type="search" placeholder="ابحث عن عقد…" inputmode="search" />
+    <div class="mkt-tools"><span class="mkt-count" id="fut-count"></span></div>
+    <div class="fut-wrap" id="fut-wrap">
+      <div class="fut-list" id="fut-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    </div>
     <div class="form">
       <label class="f" for="fut-contract">العقد</label>
       <select id="fut-contract"></select>
@@ -310,9 +341,11 @@
         <button data-lev="1">1x</button>
         <button data-lev="2" class="chip on">2x</button>
         <button data-lev="3">3x</button>
-        <button data-lev="4">4x</button>
         <button data-lev="5">5x</button>
+        <button data-lev="10">10x</button>
+        <button data-lev="20">20x</button>
       </div>
+      <div class="risk hidden" id="fut-risk"></div>
       <div class="seg" id="fut-mode-seg">
         <button data-fm="isolated" class="on">معزول</button>
         <button data-fm="cross">متقاطع</button>
@@ -335,7 +368,25 @@
     <label class="f" for="fut-cancel-id">إلغاء أمر عقود برقمِه</label>
     <input id="fut-cancel-id" placeholder="رقم الأمر من رسالة البوت" />
     <button class="go sellbtn" id="fut-cancel" style="margin-top:10px">طلب إلغاء أمر العقود</button>
-    <p class="note">إذا كان هامش 1 USDT أقل من الحد الأدنى لعقد واحد عند الرافعة المختارة، سيظهر تنبيه ولن يُرسل الطلب. أغلب العقود الكبيرة (مثل BTC وETH) تحتاج هامشاً أعلى من 1 USDT حتى عند 5x. الأزواج الأصغر مثل BNB وDOGE قد تكون ممكنة. الرصيد في حساب العقود منفصل عن الفوري.</p>
+    <p class="note">إذا كان هامش 1 USDT أقل من الحد الأدنى لعقد واحد عند الرافعة (وبحد أقصى العقد في Gate)، سيظهر تنبيه ولن يُرسل الطلب. عند 20x يصبح فتح المزيد من العقود ممكناً، لكن خطر التصفية أعلى. الرصيد في حساب العقود منفصل عن الفوري.</p>
+  </section>
+
+
+  <section class="panel hidden" id="tab-new">
+    <p class="hint soft">إدراجات Gate خلال آخر 30 يوماً (أزواج فورية وعقود آجلة). الأسعار من الواجهة العامة. التمييز «في محفظتك» يصل من البوت لصاحب الحساب فقط.</p>
+    <div class="seg" id="new-kind">
+      <button data-nk="all" class="on">الكل</button>
+      <button data-nk="spot">فوري</button>
+      <button data-nk="fut">عقود</button>
+      <button data-nk="wallet">في محفظتي</button>
+    </div>
+    <div class="actions" style="margin-top:8px">
+      <button id="btn-new-wallet">طلب العملات الجديدة في محفظتي</button>
+    </div>
+    <div class="mkt-tools"><span class="mkt-count" id="new-count"></span></div>
+    <div class="new-wrap" id="new-wrap">
+      <div class="new-list" id="new-list"><div class="skel"></div><div class="skel"></div></div>
+    </div>
   </section>
 
   <section class="panel hidden" id="tab-orders">
@@ -365,6 +416,10 @@
       <h3>عنوان الإيداع</h3>
       <label class="f" for="dep-coin">العملة</label>
       <select id="dep-coin"></select>
+      <div id="dep-other-box" class="hidden">
+        <label class="f" for="dep-other">رمز عملة أخرى في Gate</label>
+        <input id="dep-other" placeholder="مثل LINK" autocapitalize="characters" />
+      </div>
       <label class="f" for="dep-chain">الشبكة</label>
       <select id="dep-chain"></select>
       <div id="dep-inline" class="dep-inline hidden">
@@ -400,7 +455,8 @@
   <section class="panel hidden" id="tab-smart">
     <p class="hint soft">إشارة كمية من عدة أطر زمنية (15د / 1س / 4س). النتائج تصل في محادثة البوت. لا يُنفَّذ أي أمر دون تأكيدك ✅ خلال 60 ثانية، والذكاء الاصطناعي لا يتداول تلقائياً.</p>
     <label class="f" for="ai-coin">العملة</label>
-    <select id="ai-coin"></select>
+    <input id="ai-coin" list="ai-coin-list" value="BTC" placeholder="رمز العملة" autocapitalize="characters" />
+    <datalist id="ai-coin-list"></datalist>
     <div class="actions" style="margin-top:12px">
       <button id="btn-ai">🤖 طلب الإشارة الذكية</button>
       <button id="btn-air">🧠 رأي الذكاء الاصطناعي</button>
@@ -413,7 +469,8 @@
   <section class="panel hidden" id="tab-alerts">
     <p class="hint">يُحفظ التنبيه في البوت ويصلك إشعار في المحادثة عند عبور السعر.</p>
     <label class="f" for="al-coin">العملة</label>
-    <select id="al-coin"></select>
+    <input id="al-coin" list="al-coin-list" value="BTC" placeholder="رمز العملة" autocapitalize="characters" />
+    <datalist id="al-coin-list"></datalist>
     <label class="f" for="al-px">السعر المستهدف (USDT)</label>
     <input id="al-px" type="number" inputmode="decimal" step="any" />
     <button class="go" id="al-btn" style="background:var(--btn);margin-top:12px">إنشاء تنبيه سعري</button>
@@ -426,6 +483,7 @@
     <button data-tab="markets" class="on"><span>📉</span>الأسواق</button>
     <button data-tab="trade"><span>📈</span>تداول</button>
     <button data-tab="futures"><span>📜</span>عقود</button>
+    <button data-tab="new"><span>✨</span>جديد</button>
     <button data-tab="smart"><span>🤖</span>ذكي</button>
     <button data-tab="orders"><span>🧾</span>أوامري</button>
     <button data-tab="portfolio"><span>👛</span>محفظة</button>
@@ -454,8 +512,17 @@
     { symbol: "APT", pair: "APT_USDT" },
     { symbol: "SUI", pair: "SUI_USDT" }
   ];
-  const TRADEABLE = new Set(PAIRS.filter(p => p.trade).map(p => p.pair));
+  const FEATURED = PAIRS.filter(p => p.trade).map(p => p.pair);
+  const TRADEABLE = new Set(FEATURED);
   const PAIR = Object.fromEntries(PAIRS.map(p => [p.pair, p]));
+  let allSpot = PAIRS.map(p => ({ symbol: p.symbol, pair: p.pair }));
+  let mktSort = "vol";
+  const ROW_H = 58;
+  const FUT_ROW_H = 62;
+  const NEW_ROW_H = 66;
+  let walletNew = [];
+  let newListings = [];
+  let newKind = "all";
   const TFS = [
     { id: "1m", label: "1د" }, { id: "5m", label: "5د" }, { id: "15m", label: "15د" },
     { id: "1h", label: "1س" }, { id: "4h", label: "4س" }, { id: "1d", label: "1ي" }
@@ -483,7 +550,9 @@
   const FEE = 0.002;
   const TRADE_CAP = 3;
   const FUT_CAP = 1;
-  const FUT_CONTRACTS = ["BTC_USDT", "ETH_USDT", "SOL_USDT", "BNB_USDT", "XRP_USDT", "DOGE_USDT"];
+  const FUT_FEATURED = ["BTC_USDT", "ETH_USDT", "SOL_USDT", "BNB_USDT", "XRP_USDT", "DOGE_USDT"];
+  let allFut = FUT_FEATURED.map(n => ({ name: n }));
+  const FUT_MAX_LEV = 20;
   let spotMinQuote = 0;
 
   const params = new URLSearchParams(location.search);
@@ -548,6 +617,22 @@
   let favs = [];
   try { favs = JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); } catch (e) { favs = []; }
   if (!Array.isArray(favs)) favs = [];
+  try {
+    if (tg && tg.CloudStorage && typeof tg.CloudStorage.getItem === "function") {
+      let done = false;
+      const t = setTimeout(() => { done = true; }, 900);
+      tg.CloudStorage.getItem(FAV_KEY, function (err, val) {
+        if (done) return;
+        clearTimeout(t);
+        if (!err && val) {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) { favs = parsed; try { renderMarkets(); } catch (e) {} }
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
 
   function debounce(fn, ms) {
     let tmr;
@@ -1012,7 +1097,7 @@
     } catch (e) {}
   }
   function showTab(name) {
-    ["markets", "trade", "futures", "smart", "orders", "portfolio", "alerts"].forEach(t => {
+    ["markets", "trade", "futures", "new", "smart", "orders", "portfolio", "alerts"].forEach(t => {
       document.getElementById("tab-" + t).classList.toggle("hidden", t !== name);
       const b = document.querySelector('#tabs [data-tab="' + t + '"]');
       if (b) b.classList.toggle("on", t === name);
@@ -1021,6 +1106,7 @@
       setTimeout(() => { if (chart) chart.timeScale().fitContent(); if (rsiChart) rsiChart.timeScale().fitContent(); }, 40);
     }
     if (name === "futures") { try { loadFutures(); updateFutEst(); } catch (e) {} }
+    if (name === "new") { try { loadNewListings(); } catch (e) {} }
     syncTelegramChrome(name);
   }
   document.getElementById("tabs").addEventListener("click", ev => {
@@ -1059,6 +1145,15 @@
   const depCoin = document.getElementById("dep-coin");
   const depChain = document.getElementById("dep-chain");
   DEPOSIT_COINS.forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = s; depCoin.appendChild(o); });
+  (function(){ const o = document.createElement("option"); o.value = "__other__"; o.textContent = "عملة أخرى…"; depCoin.appendChild(o); })();
+  function currentDepCoin() {
+    const v = depCoin.value;
+    if (v === "__other__") return String((document.getElementById("dep-other") || {}).value || "").toUpperCase().trim();
+    return v;
+  }
+  depCoin.addEventListener("change", () => {
+    document.getElementById("dep-other-box").classList.toggle("hidden", depCoin.value !== "__other__");
+  });
   function applyChainOptions(list) {
     depChain.innerHTML = (list || []).map(c => '<option value="' + c.id + '">' + c.label + "</option>").join("");
     if (!depChain.options.length) depChain.innerHTML = "<option value=''>لا توجد شبكة متاحة</option>";
@@ -1080,15 +1175,34 @@
       .catch(() => { /* Gate currency_chains has no CORS; keep static map */ });
   }
   depCoin.addEventListener("change", fillChains);
+  const depOther = document.getElementById("dep-other");
+  if (depOther) depOther.addEventListener("input", debounce(() => { try { syncInlineDep(); } catch (e) {} }, 200));
   depChain.addEventListener("change", () => { try { syncInlineDep(); } catch (e) {} });
   fillChains();
   const alCoin = document.getElementById("al-coin");
   const aiCoin = document.getElementById("ai-coin");
-  PAIRS.filter(p => p.trade).forEach(p => {
-    const o = document.createElement("option"); o.value = p.symbol; o.textContent = p.symbol + " / USDT"; alCoin.appendChild(o);
-    const o2 = document.createElement("option"); o2.value = p.symbol; o2.textContent = p.symbol + " / USDT"; aiCoin.appendChild(o2);
-  });
+  function fillCoinLists() {
+    const dlA = document.getElementById("al-coin-list");
+    const dlI = document.getElementById("ai-coin-list");
+    if (!dlA || !dlI) return;
+    const seen = new Set();
+    const add = (sym) => {
+      sym = String(sym || "").toUpperCase();
+      if (!sym || seen.has(sym)) return;
+      seen.add(sym);
+      const o = document.createElement("option"); o.value = sym; dlA.appendChild(o);
+      const o2 = document.createElement("option"); o2.value = sym; dlI.appendChild(o2);
+    };
+    PAIRS.forEach(p => add(p.symbol));
+    (favs || []).forEach(pr => add(baseSym(pr)));
+  }
+  fillCoinLists();
 
+  function baseSym(p) {
+    p = String(p || "").toUpperCase().replace(/-/g, "_").trim();
+    if (p.endsWith("_USDT")) p = p.slice(0, -5);
+    return p;
+  }
   function encNum(n) {
     n = Number(n);
     if (!isFinite(n) || n < 0) return null;
@@ -1111,29 +1225,29 @@
     } else if (a === "open_orders" || a === "order_history" || a === "my_trades" || a === "cancel_all") {
       var pref = { open_orders: "ord", order_history: "oh", my_trades: "mt", cancel_all: "ca" }[a];
       var pair = String(payload.pair || "").toUpperCase().replace("-", "_");
-      var sym = pair.split("_")[0] || "";
-      out = pref + (sym && /^[A-Z0-9]+$/.test(sym) ? "_" + sym : "");
+      var sym = baseSym(pair);
+      out = pref + (sym && /^[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(sym) ? "_" + sym : "");
     } else if (a === "alert") {
-      var symbol = String(payload.symbol || "").toUpperCase() || String(payload.pair || "").split("_")[0];
+      var symbol = baseSym(payload.symbol || payload.pair || "");
       var tn = encNum(payload.target || payload.price);
-      if (!/^[A-Z0-9]+$/.test(symbol || "") || !tn) return null;
+      if (!/^[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(symbol || "") || !tn) return null;
       out = "al_" + symbol + "_" + tn;
     } else if (a === "cancel_order") {
       var oid = String(payload.order_id || payload.id || "");
       if (!oid || !/^[A-Za-z0-9_-]+$/.test(oid)) return null;
       var kind = String(payload.kind || "spot").toLowerCase();
       var cpair = String(payload.pair || "").toUpperCase().replace("-", "_");
-      var csym = cpair.split("_")[0] || "";
+      var csym = baseSym(cpair);
       if (kind === "price") out = "cx_p_" + oid;
       else if (csym && /^[A-Z0-9]+$/.test(csym)) out = "cx_s_" + csym + "_" + oid;
       else out = "cx_" + oid;
     } else if (a === "trade") {
       var sc = payload.side === "buy" ? "b" : (payload.side === "sell" ? "s" : "");
       var tpair = String(payload.pair || "").toUpperCase().replace("-", "_");
-      var tsym = tpair.split("_")[0] || "";
+      var tsym = baseSym(tpair);
       var typ = payload.order_type || payload.type || "market";
       var tc = { market: "m", limit: "l", stop_limit: "k", take_profit: "t", stop_loss: "h" }[typ];
-      if (!sc || !/^[A-Z0-9]+$/.test(tsym) || !tc) return null;
+      if (!sc || !/^[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(tsym) || !tc) return null;
       var parts = ["o", sc, tsym, tc];
       var n;
       if (payload.percent != null && String(payload.percent) !== "") {
@@ -1155,44 +1269,45 @@
       }
       out = parts.join("_");
     } else if (a === "ai" || a === "ai_review" || a === "ai_exec") {
-      var asym = String(payload.symbol || "").toUpperCase() || String(payload.pair || "").split("_")[0] || "BTC";
-      if (!/^[A-Z0-9]+$/.test(asym)) return null;
+      var asym = baseSym(payload.symbol || payload.pair || "BTC") || "BTC";
+      if (!/^[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(asym)) return null;
       var ap = { ai: "ai", ai_review: "air", ai_exec: "aix" }[a];
       out = ap + "_" + asym;
     } else if (a === "ai_watch") {
       out = payload.enabled ? "aiw_on" : "aiw_off";
-    } else if (a === "fut_pos") out = "fp";
+    } else if (a === "new_wallet") out = "nw";
+    else if (a === "fut_pos") out = "fp";
     else if (a === "fut_ord") out = "fo";
     else if (a === "fut_close") {
       var fc = String(payload.contract || payload.pair || "").toUpperCase().replace("-", "_");
-      var fcs = fc.split("_")[0] || "";
-      if (!/^[A-Z0-9]+$/.test(fcs)) return null;
+      var fcs = baseSym(fc);
+      if (!/^[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(fcs)) return null;
       out = "fc_" + fcs;
     } else if (a === "fut_lev") {
-      var lc = String(payload.contract || "").toUpperCase().replace("-", "_").split("_")[0];
+      var lc = baseSym(payload.contract || "");
       var lev = parseInt(payload.leverage, 10);
-      if (!/^[A-Z0-9]+$/.test(lc || "") || !(lev >= 1 && lev <= 5)) return null;
+      if (!/^[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(lc || "") || !(lev >= 1 && lev <= 20)) return null;
       out = "flev_" + lc + "_" + lev;
     } else if (a === "fut_cancel") {
       var foid = String(payload.order_id || payload.id || "");
       if (!foid || !/^[A-Za-z0-9_-]+$/.test(foid)) return null;
       out = "fx_" + foid;
     } else if (a === "fut_tpsl") {
-      var tpc = String(payload.contract || "").toUpperCase().replace("-", "_").split("_")[0];
+      var tpc = baseSym(payload.contract || "");
       var tpn = encNum(payload.price || payload.trigger);
       var k = String(payload.kind || "tp").toLowerCase();
-      if (!/^[A-Z0-9]+$/.test(tpc || "") || !tpn) return null;
+      if (!/^[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(tpc || "") || !tpn) return null;
       out = (k === "sl" ? "fsp_" : "ftp_") + tpc + "_" + tpn;
     } else if (a === "fut_open") {
       var fside = payload.side === "long" || payload.side === "buy" || payload.side === "l" ? "l" :
         (payload.side === "short" || payload.side === "sell" || payload.side === "s" ? "s" : "");
       var ftyp = (payload.order_type || payload.type || "market") === "limit" ? "l" : "m";
       var fcon = String(payload.contract || payload.pair || "").toUpperCase().replace("-", "_");
-      var fsym = fcon.split("_")[0] || "";
+      var fsym = baseSym(fcon);
       var fu = encNum(payload.usdt || payload.margin);
       var fl = parseInt(payload.leverage, 10) || 2;
       var fm = String(payload.margin_mode || payload.mode || "isolated").toLowerCase() === "cross" ? "c" : "i";
-      if (!fside || !/^[A-Z0-9]+$/.test(fsym) || !fu || !(fl >= 1 && fl <= 5)) return null;
+      if (!fside || !/^[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(fsym) || !fu || !(fl >= 1 && fl <= 20)) return null;
       var fparts = ["f", fside, fsym, ftyp, fu, fl + "x" + fm];
       if (ftyp === "l") {
         var fpx = encNum(payload.price || payload.limit_price);
@@ -1258,7 +1373,7 @@
     const b = ev.target.closest("[data-unit]"); if (!b) return;
     unit = b.dataset.unit;
     document.querySelectorAll("#unit-seg button").forEach(x => x.classList.toggle("on", x === b));
-    document.getElementById("amt").value = unit === "usdt" ? "5" : "";
+    document.getElementById("amt").value = unit === "usdt" ? String(TRADE_CAP) : "";
     updateEst();
   });
   document.getElementById("pct").addEventListener("click", ev => {
@@ -1364,7 +1479,7 @@
   });
   bindSend("btn-port", () => sendAction({ action: "portfolio" }));
   bindSend("btn-bal", () => sendAction({ action: "balance" }));
-  bindSend("dep-btn", () => sendAction({ action: "deposit", currency: depCoin.value, chain: depChain.value }));
+  bindSend("dep-btn", () => sendAction({ action: "deposit", currency: currentDepCoin(), chain: depChain.value }));
   bindSend("al-btn", () => {
     const target = Number(document.getElementById("al-px").value);
     if (!(target > 0)) { alert("أدخل سعرًا مستهدفًا"); return; }
@@ -1384,15 +1499,22 @@
   async function loadTickers() {
     try {
       const data = await cachedFetch("tickers", 8000, () => fetchJson(GATE + "/spot/tickers"));
-      const want = new Set(PAIRS.map(p => p.pair));
+      const seen = new Set();
+      const next = [];
       (data || []).forEach(t => {
-        if (want.has(t.currency_pair)) {
-          tickers[t.currency_pair] = {
-            last: Number(t.last), change: Number(t.change_percentage || 0),
-            quote: Number(t.quote_volume || 0), base: Number(t.base_volume || 0)
-          };
+        const id = String(t.currency_pair || "");
+        if (!id.endsWith("_USDT")) return;
+        tickers[id] = {
+          last: Number(t.last), change: Number(t.change_percentage || 0),
+          quote: Number(t.quote_volume || 0), base: Number(t.base_volume || 0)
+        };
+        TRADEABLE.add(id);
+        if (!seen.has(id)) {
+          seen.add(id);
+          next.push({ symbol: baseSym(id), pair: id });
         }
       });
+      if (next.length) allSpot = next;
       document.getElementById("dot").classList.remove("off");
       document.getElementById("src").textContent = "Gate.io";
       renderMarkets(); renderHead(); updateEst();
@@ -1411,29 +1533,59 @@
     el.textContent = (up ? "+" : "") + Number(t.change).toFixed(2) + "%";
     el.className = "chg " + (up ? "up" : "down");
   }
-  function renderMarkets() {
+  function filteredMarkets() {
     const q = (document.getElementById("search").value || "").trim().toUpperCase();
-    const rows = PAIRS.filter(p => !q || p.symbol.includes(q) || p.pair.includes(q));
+    let rows = allSpot || [];
+    if (q) rows = rows.filter(p => (p.symbol || "").includes(q) || (p.pair || "").includes(q));
+    rows = rows.slice();
     rows.sort((a, b) => {
       const fa = favs.includes(a.pair) ? 0 : 1, fb = favs.includes(b.pair) ? 0 : 1;
       if (fa !== fb) return fa - fb;
-      return (TRADEABLE.has(b.pair) - TRADEABLE.has(a.pair)) || a.symbol.localeCompare(b.symbol);
+      const ta = tickers[a.pair] || {}, tb = tickers[b.pair] || {};
+      if (mktSort === "chg") return (Number(tb.change) || 0) - (Number(ta.change) || 0);
+      if (mktSort === "name") return a.symbol.localeCompare(b.symbol);
+      return (Number(tb.quote) || 0) - (Number(ta.quote) || 0);
     });
+    return rows;
+  }
+  function renderMarkets() {
+    const wrap = document.getElementById("mkt-wrap") || document.getElementById("mkt");
     const box = document.getElementById("mkt");
-    if (!rows.length) { box.innerHTML = "<div class='empty'>لا توجد نتائج مطابقة.</div>"; return; }
-    box.innerHTML = rows.map(p => {
+    const rows = filteredMarkets();
+    const countEl = document.getElementById("mkt-count");
+    if (countEl) countEl.textContent = rows.length ? (rows.length.toLocaleString("en-US") + " زوجاً") : "";
+    if (!rows.length) { box.style.height = "auto"; box.innerHTML = "<div class='empty'>لا توجد نتائج مطابقة.</div>"; return; }
+    const vh = wrap.clientHeight || 400;
+    const scroll = wrap.scrollTop || 0;
+    const start = Math.max(0, Math.floor(scroll / ROW_H) - 10);
+    const end = Math.min(rows.length, Math.ceil((scroll + vh) / ROW_H) + 10);
+    box.style.height = (rows.length * ROW_H) + "px";
+    let html = "";
+    for (let i = start; i < end; i++) {
+      const p = rows[i];
       const t = tickers[p.pair] || {};
       const up = (t.change || 0) >= 0;
       const star = favs.includes(p.pair) ? "on" : "";
-      return '<div class="row' + (p.pair === pair ? " on" : "") + '" data-pair="' + p.pair + '">'
+      html += '<div class="row abs' + (p.pair === pair ? " on" : "") + '" style="top:' + (i * ROW_H) + 'px" data-pair="' + p.pair + '">'
         + '<button class="star ' + star + '" data-fav="' + p.pair + '">' + (star ? "★" : "☆") + "</button>"
-        + '<div class="sym">' + p.symbol + "<small> / USDT</small><div class=\"vol\">حجم 24س " + volFmt(t.quote) + (p.trade ? "" : " · عرض") + "</div></div>"
+        + '<div class="sym">' + p.symbol + "<small> / USDT</small><div class=\"vol\">حجم 24س " + volFmt(t.quote) + "</div></div>"
         + '<div class="last">' + (t.last ? fmt(t.last) : "—") + "</div>"
-        + '<div class="chgc ' + (up ? "bid" : "ask") + '">' + (t.change == null ? "—" : ((up ? "+" : "") + Number(t.change || 0).toFixed(2) + "%")) + "</div>"
+        + '<div class="chgc ' + (up ? "bid" : "ask") + '">' + (t.change == null || !isFinite(t.change) ? "—" : ((up ? "+" : "") + Number(t.change || 0).toFixed(2) + "%")) + "</div>"
         + "</div>";
-    }).join("");
+    }
+    box.innerHTML = html;
   }
-  document.getElementById("search").addEventListener("input", debounce(renderMarkets, 140));
+  document.getElementById("search").addEventListener("input", debounce(renderMarkets, 120));
+  const mktWrap = document.getElementById("mkt-wrap");
+  if (mktWrap) mktWrap.addEventListener("scroll", () => renderMarkets(), { passive: true });
+  const mktSortEl = document.getElementById("mkt-sort");
+  if (mktSortEl) mktSortEl.addEventListener("click", ev => {
+    const b = ev.target.closest("[data-ms]"); if (!b) return;
+    mktSort = b.dataset.ms;
+    document.querySelectorAll("#mkt-sort button").forEach(x => x.classList.toggle("on", x === b));
+    if (mktWrap) mktWrap.scrollTop = 0;
+    renderMarkets();
+  });
   document.getElementById("mkt").addEventListener("click", ev => {
     const fav = ev.target.closest("[data-fav]");
     if (fav) {
@@ -1441,6 +1593,11 @@
       const p = fav.dataset.fav;
       if (favs.includes(p)) favs = favs.filter(x => x !== p); else favs.push(p);
       try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (e) {}
+      try {
+        if (tg && tg.CloudStorage && typeof tg.CloudStorage.setItem === "function") {
+          tg.CloudStorage.setItem(FAV_KEY, JSON.stringify(favs), function () {});
+        }
+      } catch (e) {}
       renderMarkets();
       return;
     }
@@ -1602,12 +1759,12 @@
   document.getElementById("dep-inline-copy").addEventListener("click", () => copyText(document.getElementById("dep-inline-a").textContent, "العنوان"));
   document.getElementById("dep-inline-copy-m").addEventListener("click", () => copyText(document.getElementById("dep-inline-m").textContent, "الـ Memo"));
   document.getElementById("dep-inline-qrbtn").addEventListener("click", () => {
-    const info = lookupSavedDep(depCoin.value, depChain.value);
+    const info = lookupSavedDep(currentDepCoin(), depChain.value);
     if (info) openDepView(info);
   });
   document.getElementById("dep-inline-refresh").addEventListener("click", () => {
     haptic("medium");
-    sendAction({ action: "deposit", currency: depCoin.value, chain: depChain.value });
+    sendAction({ action: "deposit", currency: currentDepCoin(), chain: depChain.value });
   });
   document.getElementById("dep-saved-list").addEventListener("click", ev => {
     const btn = ev.target.closest("button");
@@ -1651,68 +1808,132 @@
   let futSide = "long", futType = "market", futLev = 2, futMode = "isolated";
   let futSpecs = {}, futTickers = {};
   const futSel = document.getElementById("fut-contract");
-  FUT_CONTRACTS.forEach(c => {
-    const o = document.createElement("option");
-    o.value = c; o.textContent = c.replace("_", "/");
-    futSel.appendChild(o);
-  });
+  function fillFutSelect(names) {
+    const cur = futSel.value;
+    futSel.innerHTML = "";
+    const top = FUT_FEATURED.slice();
+    (names || []).forEach(n => { if (top.indexOf(n) < 0) top.push(n); });
+    // keep select reasonably small: featured + current
+    const keep = new Set(FUT_FEATURED);
+    if (cur) keep.add(cur);
+    keep.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c; o.textContent = c.replace("_USDT", "/USDT").replace("_", "/");
+      futSel.appendChild(o);
+    });
+    if (cur && ![...futSel.options].some(o => o.value === cur)) {
+      const o = document.createElement("option"); o.value = cur; o.textContent = cur.replace("_USDT", "/USDT"); futSel.appendChild(o);
+    }
+    if (cur) futSel.value = cur;
+  }
+  fillFutSelect(FUT_FEATURED);
   function futSym() { return (futSel.value || "BTC_USDT"); }
+  function contractMaxLev(name) {
+    const c = futSpecs[name] || {};
+    let mx = Number(c.leverage_max || FUT_MAX_LEV);
+    if (!(mx >= 1)) mx = FUT_MAX_LEV;
+    return Math.max(1, Math.min(FUT_MAX_LEV, Math.floor(mx)));
+  }
+  function filteredFuts() {
+    const q = (document.getElementById("fut-search") && document.getElementById("fut-search").value || "").trim().toUpperCase();
+    let rows = allFut || [];
+    if (q) rows = rows.filter(r => (r.name || "").includes(q));
+    return rows;
+  }
+  function renderFutList() {
+    const wrap = document.getElementById("fut-wrap") || document.getElementById("fut-list");
+    const list = document.getElementById("fut-list");
+    const rows = filteredFuts();
+    const countEl = document.getElementById("fut-count");
+    if (countEl) countEl.textContent = rows.length ? (rows.length.toLocaleString("en-US") + " عقداً") : "";
+    if (!rows.length) { list.style.height = "auto"; list.innerHTML = "<div class='empty'>لا توجد نتائج مطابقة.</div>"; return; }
+    const vh = wrap.clientHeight || 400;
+    const scroll = wrap.scrollTop || 0;
+    const start = Math.max(0, Math.floor(scroll / FUT_ROW_H) - 8);
+    const end = Math.min(rows.length, Math.ceil((scroll + vh) / FUT_ROW_H) + 8);
+    list.style.height = (rows.length * FUT_ROW_H) + "px";
+    let html = "";
+    for (let i = start; i < end; i++) {
+      const name = rows[i].name;
+      const c = futSpecs[name] || {};
+      const t = futTickers[name] || {};
+      const mark = Number(c.mark_price || t.mark_price || t.last || 0);
+      const chg = Number(t.change_percentage || c.change_percentage || 0);
+      const fund = Number(c.funding_rate || t.funding_rate || 0);
+      html += '<div class="fut-row abs' + (name === futSym() ? " on" : "") + '" style="top:' + (i * FUT_ROW_H) + 'px" data-contract="' + name + '">'
+        + '<div><div class="sym">' + name.replace("_USDT", "/USDT") + '</div><div class="vol">تمويل ' + (fund * 100).toFixed(4) + "% · حتى " + contractMaxLev(name) + "x</div></div>"
+        + '<div class="last">' + (mark ? fmt(mark) : "—") + "</div>"
+        + '<div class="chgc ' + (chg >= 0 ? "bid" : "ask") + '">' + (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%</div></div>";
+    }
+    list.innerHTML = html;
+  }
   async function loadFutures() {
     const list = document.getElementById("fut-list");
     try {
       const [cr, tr] = await Promise.all([
-        fetch(GATE + "/futures/usdt/contracts"),
-        fetch(GATE + "/futures/usdt/tickers")
+        cachedFetch("fut-contracts", 60000, () => fetchJson(GATE + "/futures/usdt/contracts")),
+        cachedFetch("fut-tickers", 8000, () => fetchJson(GATE + "/futures/usdt/tickers"))
       ]);
-      if (!cr.ok || !tr.ok) throw new Error("http");
-      const contracts = await cr.json();
-      const ticks = await tr.json();
-      (contracts || []).forEach(c => { if (c && c.name) futSpecs[c.name] = c; });
-      (ticks || []).forEach(t => { if (t && t.contract) futTickers[t.contract] = t; });
-      list.innerHTML = "";
-      FUT_CONTRACTS.forEach(name => {
-        const c = futSpecs[name] || {};
-        const t = futTickers[name] || {};
-        const mark = Number(c.mark_price || t.mark_price || t.last || 0);
-        const chg = Number(t.change_percentage || c.change_percentage || 0);
-        const fund = Number(c.funding_rate || t.funding_rate || 0);
-        const row = document.createElement("div");
-        row.className = "fut-row" + (name === futSym() ? " on" : "");
-        row.dataset.contract = name;
-        row.innerHTML = '<div><div class="sym">' + name.replace("_", "/") + '</div><div class="vol">تمويل ' + (fund * 100).toFixed(4) + '%</div></div>' +
-          '<div class="last">' + fmt(mark) + '</div>' +
-          '<div class="chgc ' + (chg >= 0 ? "bid" : "ask") + '">' + (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%</div>";
-        row.addEventListener("click", () => {
-          haptic("sel");
-          futSel.value = name;
-          document.querySelectorAll(".fut-row").forEach(x => x.classList.toggle("on", x === row));
-          updateFutEst();
-        });
-        list.appendChild(row);
+      const contracts = cr || [];
+      const ticks = tr || [];
+      const names = [];
+      contracts.forEach(c => {
+        if (c && c.name && !c.in_delisting) {
+          futSpecs[c.name] = c;
+          names.push({ name: c.name, vol: Number((futTickers[c.name] || {}).volume_24h || c.trade_size || 0) });
+        }
       });
+      ticks.forEach(t => { if (t && t.contract) futTickers[t.contract] = t; });
+      names.sort((a, b) => {
+        const ta = futTickers[a.name] || {}, tb = futTickers[b.name] || {};
+        return (Number(tb.volume_24h || tb.volume_24h_base || 0) - Number(ta.volume_24h || ta.volume_24h_base || 0));
+      });
+      if (names.length) allFut = names;
+      fillFutSelect(allFut.map(x => x.name));
+      renderFutList();
       updateFutEst();
     } catch (e) {
       if (!list.children.length || list.querySelector(".skel")) {
         list.innerHTML = '<div class="empty">تعذر جلب عقود Gate الآن. ستُستخدم القيم المحفوظة إن وُجدت.</div>';
+      } else {
+        renderFutList();
       }
     }
   }
   function updateFutEst() {
     const est = document.getElementById("fut-est");
     const err = document.getElementById("fut-err");
+    const risk = document.getElementById("fut-risk");
     const name = futSym();
     const c = futSpecs[name] || {};
     const t = futTickers[name] || {};
     const mark = Number(c.mark_price || t.mark_price || t.last || 0);
     const qm = Number(c.quanto_multiplier || 0);
+    const mmr = Number(c.maintenance_rate || 0.01) || 0.01;
+    const cmax = contractMaxLev(name);
+    if (futLev > cmax) futLev = cmax;
+    document.querySelectorAll("#fut-levs button").forEach(x => {
+      const lv = parseInt(x.dataset.lev, 10);
+      x.disabled = lv > cmax;
+      x.classList.toggle("on", lv === futLev);
+    });
     let omin = parseInt(c.order_size_min, 10);
     if (!(omin > 0)) omin = 1;
     const usdt = Number(document.getElementById("fut-usdt").value) || 0;
     const btn = document.getElementById("fut-open");
-    let html = "سعر العلامة: <b>" + fmt(mark) + " USDT</b> · رافعة <b>" + futLev + "x</b> · " + (futMode === "cross" ? "متقاطع" : "معزول");
+    let html = "سعر العلامة: <b>" + fmt(mark) + " USDT</b> · رافعة <b>" + futLev + "x</b> (حد العقد " + cmax + "x) · " + (futMode === "cross" ? "متقاطع" : "معزول");
     err.classList.add("hidden");
     err.textContent = "";
     btn.disabled = false;
+    const dist = Math.max(0.01, (1 / futLev - mmr) * 100);
+    const liq = futSide === "long" ? mark * (1 - dist / 100) : mark * (1 + dist / 100);
+    if (mark > 0) html += "<br>تصفية تقريبية ≈ <b>" + fmt(liq) + "</b> (نحو " + dist.toFixed(2) + "٪)";
+    if (risk) {
+      if (futLev > 5) {
+        risk.textContent = "تحذير: رافعة " + futLev + "x تزيد خطر التصفية. تقدير المسافة إلى التصفية نحو " + dist.toFixed(2) + "٪ (سعر تصفية تقريبي " + fmt(liq) + " من سعر العلامة). هذا تقدير تقريبي وليس ضماناً.";
+        risk.classList.remove("hidden");
+      } else risk.classList.add("hidden");
+    }
     if (usdt > FUT_CAP + 1e-12) {
       err.textContent = "الحد الأقصى لهامش الصفقة هو " + FUT_CAP + " USDT.";
       err.classList.remove("hidden");
@@ -1723,7 +1944,7 @@
       const minNotional = omin * qm * mark;
       const minMargin = minNotional / futLev;
       if (contracts < omin) {
-        err.textContent = "هامش " + fmt(usdt, 4) + " USDT برافعة " + futLev + "x لا يكفي لفتح الحد الأدنى لهذا العقد (" + omin + " عقد، قيمة اسمية تقارب " + fmt(minNotional, 2) + " USDT). الحد الأدنى للهامش عند هذه الرافعة حوالي " + fmt(minMargin, 2) + " USDT. حد الصفقة الحالي " + FUT_CAP + " USDT.";
+        err.textContent = "هامش " + fmt(usdt, 4) + " USDT برافعة " + futLev + "x لا يكفي لفتح الحد الأدنى لهذا العقد (" + omin + " عقد، قيمة اسمية تقارب " + fmt(minNotional, 2) + " USDT). الحد الأدنى للهامش عند هذه الرافعة حوالي " + fmt(minMargin, 2) + " USDT. حد الهامش الحالي " + FUT_CAP + " USDT.";
         err.classList.remove("hidden");
         btn.disabled = true;
       } else {
@@ -1735,8 +1956,20 @@
       html += "<br>جاري جلب مواصفات العقد…";
     }
     est.innerHTML = html;
-    document.querySelectorAll(".fut-row").forEach(x => x.classList.toggle("on", x.dataset.contract === name));
   }
+  const futWrap = document.getElementById("fut-wrap");
+  if (futWrap) futWrap.addEventListener("scroll", () => renderFutList(), { passive: true });
+  const futSearch = document.getElementById("fut-search");
+  if (futSearch) futSearch.addEventListener("input", debounce(() => { if (futWrap) futWrap.scrollTop = 0; renderFutList(); }, 120));
+  document.getElementById("fut-list").addEventListener("click", ev => {
+    const row = ev.target.closest("[data-contract]"); if (!row) return;
+    haptic("sel");
+    const name = row.dataset.contract;
+    fillFutSelect([name].concat((allFut || []).map(x => x.name)));
+    futSel.value = name;
+    renderFutList();
+    updateFutEst();
+  });
   document.getElementById("fut-side-seg").addEventListener("click", ev => {
     const b = ev.target.closest("[data-fside]"); if (!b) return;
     futSide = b.dataset.fside;
@@ -1826,6 +2059,124 @@
       setTimeout(() => { el.classList.add("hidden"); }, 900);
     }
   });
+
+
+  function parseWalletNew() {
+    try {
+      const q = new URLSearchParams(location.search);
+      let raw = q.get("wn") || "";
+      if (!raw && location.hash) {
+        const h = new URLSearchParams(String(location.hash).replace(/^#/, ""));
+        raw = h.get("wn") || "";
+      }
+      walletNew = String(raw || "").toUpperCase().split(/[,_-]+/).filter(x => /^[A-Z0-9]+$/.test(x));
+    } catch (e) { walletNew = []; }
+  }
+  parseWalletNew();
+  function fmtDate(ts) {
+    if (!ts) return "—";
+    const d = new Date(Number(ts) * 1000);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" });
+  }
+  async function loadNewListings() {
+    const cutoff = Date.now() / 1000 - 30 * 86400;
+    const items = [];
+    try {
+      const [pairs, futs] = await Promise.all([
+        cachedFetch("spot-pairs", 300000, () => fetchJson(GATE + "/spot/currency_pairs")),
+        cachedFetch("fut-contracts", 60000, () => fetchJson(GATE + "/futures/usdt/contracts"))
+      ]);
+      (pairs || []).forEach(r => {
+        if (!r || r.quote !== "USDT") return;
+        const ts = Number(r.buy_start || r.sell_start || 0);
+        if (ts >= cutoff) items.push({ kind: "spot", id: r.id, base: r.base || baseSym(r.id), ts: ts });
+      });
+      (futs || []).forEach(c => {
+        if (!c || !c.name || c.in_delisting) return;
+        const ts = Number(c.launch_time || c.create_time || 0);
+        if (ts >= cutoff) items.push({ kind: "fut", id: c.name, base: baseSym(c.name), ts: ts });
+        if (c.name) futSpecs[c.name] = futSpecs[c.name] || c;
+      });
+    } catch (e) {
+      try {
+        const snap = await fetchJson("new-listings.json?v=11");
+        (snap.spot || []).forEach(r => items.push({ kind: "spot", id: r.id, base: r.base || baseSym(r.id), ts: r.buy_start }));
+        (snap.fut || []).forEach(r => items.push({ kind: "fut", id: r.n, base: baseSym(r.n), ts: r.t }));
+      } catch (e2) {}
+    }
+    items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    newListings = items;
+    renderNewList();
+  }
+  function filteredNew() {
+    let rows = newListings || [];
+    if (newKind === "spot") rows = rows.filter(r => r.kind === "spot");
+    else if (newKind === "fut") rows = rows.filter(r => r.kind === "fut");
+    else if (newKind === "wallet") rows = rows.filter(r => walletNew.indexOf(r.base) >= 0);
+    return rows;
+  }
+  function renderNewList() {
+    const wrap = document.getElementById("new-wrap") || document.getElementById("new-list");
+    const box = document.getElementById("new-list");
+    if (!box) return;
+    const rows = filteredNew();
+    const countEl = document.getElementById("new-count");
+    if (countEl) countEl.textContent = rows.length ? (rows.length + " إدراجاً") : "";
+    if (!rows.length) {
+      box.style.height = "auto";
+      box.innerHTML = "<div class='empty'>" + (newKind === "wallet" && !walletNew.length
+        ? "لا توجد إشارة من البوت لعملات جديدة في المحفظة. اضغط «طلب العملات الجديدة في محفظتي»."
+        : "لا توجد إدراجات خلال 30 يوماً في هذا التصنيف.") + "</div>";
+      return;
+    }
+    const vh = wrap.clientHeight || 400;
+    const scroll = wrap.scrollTop || 0;
+    const start = Math.max(0, Math.floor(scroll / NEW_ROW_H) - 8);
+    const end = Math.min(rows.length, Math.ceil((scroll + vh) / NEW_ROW_H) + 8);
+    box.style.height = (rows.length * NEW_ROW_H) + "px";
+    let html = "";
+    for (let i = start; i < end; i++) {
+      const r = rows[i];
+      const t = r.kind === "fut" ? (futTickers[r.id] || {}) : (tickers[r.id] || {});
+      const last = Number(t.last || t.mark_price || 0);
+      const chg = Number(t.change_percentage || t.change || 0);
+      const held = walletNew.indexOf(r.base) >= 0;
+      html += '<div class="new-row abs' + (held ? " held" : "") + '" style="top:' + (i * NEW_ROW_H) + 'px" data-new="' + r.id + '" data-kind="' + r.kind + '">'
+        + '<div><div class="sym">' + (r.base || r.id) + " <small>" + (r.kind === "fut" ? "عقد" : "فوري") + '</small>'
+        + (held ? ' <span class="pill held">في محفظتك</span>' : "") + "</div>"
+        + '<div class="when">أُدرج ' + fmtDate(r.ts) + "</div></div>"
+        + '<div class="last">' + (last ? fmt(last) : "—") + "</div>"
+        + '<div class="chgc ' + (chg >= 0 ? "bid" : "ask") + '">' + (isFinite(chg) && last ? ((chg >= 0 ? "+" : "") + chg.toFixed(2) + "%") : "—") + "</div></div>";
+    }
+    box.innerHTML = html;
+  }
+  const newWrap = document.getElementById("new-wrap");
+  if (newWrap) newWrap.addEventListener("scroll", () => renderNewList(), { passive: true });
+  const newKindEl = document.getElementById("new-kind");
+  if (newKindEl) newKindEl.addEventListener("click", ev => {
+    const b = ev.target.closest("[data-nk]"); if (!b) return;
+    newKind = b.dataset.nk;
+    document.querySelectorAll("#new-kind button").forEach(x => x.classList.toggle("on", x === b));
+    if (newWrap) newWrap.scrollTop = 0;
+    renderNewList();
+  });
+  const newListEl = document.getElementById("new-list");
+  if (newListEl) newListEl.addEventListener("click", ev => {
+    const row = ev.target.closest("[data-new]"); if (!row) return;
+    const id = row.dataset.new, kind = row.dataset.kind;
+    haptic("sel");
+    if (kind === "fut") {
+      fillFutSelect([id]);
+      document.getElementById("fut-contract").value = id;
+      showTab("futures");
+      try { updateFutEst(); renderFutList(); } catch (e) {}
+    } else {
+      selectPair(id);
+      showTab("trade");
+    }
+  });
+  bindSend("btn-new-wallet", () => sendAction({ action: "new_wallet" }));
 
   initDepositStore();
   loadTickers(); loadCandles(); loadBook(); loadTrades();

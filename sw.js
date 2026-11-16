@@ -1,5 +1,5 @@
-/* Network-first for the app page so updates (v10.1-caps) go live; cache CDN shells only. */
-const CACHE = "ajcoin-v10.1-caps";
+/* Network-first for the app page so updates (v11-markets) go live; cache CDN shells only. */
+const CACHE = "ajcoin-v11-markets";
 self.addEventListener("install", e => { self.skipWaiting(); });
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
