@@ -16,7 +16,7 @@ ver() { sed -n 's/^const VERSION = "\([0-9.]*\)".*/\1/p' sw.js; }
 verify() {
   local v=${1:-$(ver)} ok=0
   for host in "$GL" "$GH"; do
-    for f in "" "sw.js" "ajdata.js?v=$v" "tg-web-app.js?v=$v" "lib-lwc-4.2.3.js?v=$v" "v19.js?v=$v" "v20.js?v=$v"; do
+    for f in "" "sw.js" "ajdata.js?v=$v" "tg-web-app.js?v=$v" "lib-lwc-4.2.3.js?v=$v" "v19.js?v=$v" "v20.js?v=$v" "v21.js?v=$v"; do
       case "$f" in *\?*) u="$host/$f&nc=$RANDOM";; *) u="$host/$f?nc=$RANDOM";; esac
       c=$(curl -s -o /dev/null -w '%{http_code}' "$u" 2>/dev/null || echo 000)
       [ "$c" = 200 ] || { echo "FAIL $c $host/$f"; ok=1; }

@@ -1,13 +1,13 @@
-/* ajcoin-miniapp service worker v20 (based on v19.3) — safe updates, never blocks the first screen.
+/* ajcoin-miniapp service worker v21 (based on v19.3) — safe updates, never blocks the first screen.
    v19.3: every library is self-hosted (no CDN). Old caches, including the v19.2 CDN cache, are dropped.
    - index.html: network with a short timeout, else the cached copy (cache key has NO query: ?bal/?deps never stored)
    - versioned app files (?v=…): cache-first (immutable per version), else network
    - Gate.io API and the market-data snapshot (raw.githubusercontent.com): not touched (always live) */
-const VERSION = "20";
+const VERSION = "21";
 const APP = "ajcoin-v" + VERSION;
 const NAV_TIMEOUT = 2500;
 const PRECACHE = ["./index.html", "./inflate.js?v=" + VERSION, "./v15.js?v=" + VERSION, "./v16-team.js?v=" + VERSION,
-  "./v17.js?v=" + VERSION, "./v18.js?v=" + VERSION, "./v19.js?v=" + VERSION, "./v20.js?v=" + VERSION,
+  "./v17.js?v=" + VERSION, "./v18.js?v=" + VERSION, "./v19.js?v=" + VERSION, "./v20.js?v=" + VERSION, "./v21.js?v=" + VERSION,
   "./ajdata.js?v=" + VERSION, "./tg-web-app.js?v=" + VERSION, "./lib-lwc-4.2.3.js?v=" + VERSION, "./lib-qrcode-1.4.4.js?v=" + VERSION,
   "./manifest.webmanifest"];
 

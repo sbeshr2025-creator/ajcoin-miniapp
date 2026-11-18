@@ -12,8 +12,8 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v20: indicators, heatmap, watchlist, risk calculator, allocation. No third-party CDN; market data falls back to our snapshot when Gate.io is unreachable -->
-  <script src="inflate.js?v=20"></script>
+  <!-- ajcoin-miniapp v21: Smart Trading tab (engine signals, honest backtest, paper performance, kill switch) + v20 indicators, heatmap, watchlist, risk calculator, allocation. No third-party CDN; market data falls back to our snapshot when Gate.io is unreachable -->
+  <script src="inflate.js?v=21"></script>
   <style>
     :root {
       --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
@@ -505,6 +505,8 @@
     </div>
   </section>
 
+  <section class="panel hidden" id="tab-xsmart" aria-label="التداول الذكي"></section>
+
   <section class="panel hidden" id="tab-smart">
     <p class="hint soft">إشارة كمية من عدة أطر زمنية (15د / 1س / 4س). النتائج تصل في محادثة البوت. لا يُنفَّذ أي أمر دون تأكيدك ✅ خلال 60 ثانية، والذكاء الاصطناعي لا يتداول تلقائياً.</p>
     <label class="f" for="ai-coin">العملة</label>
@@ -578,6 +580,7 @@
     <button data-tab="trade"><span>📈</span>تداول</button>
     <button data-tab="futures"><span>📜</span>عقود</button>
     <button data-tab="new"><span>✨</span>جديد</button>
+    <button data-tab="xsmart"><span>🧠</span>التداول الذكي</button>
     <button data-tab="smart"><span>🤖</span>ذكي</button>
     <button data-tab="auto"><span>⚡</span>تلقائي</button>
     <button data-tab="orders"><span>🧾</span>أوامري</button>
@@ -585,8 +588,8 @@
     <button data-tab="alerts"><span>🔔</span>تنبيه</button>
   </nav>
 
-<script src="ajdata.js?v=20"></script>
-<script src="tg-web-app.js?v=20"></script>
+<script src="ajdata.js?v=21"></script>
+<script src="tg-web-app.js?v=21"></script>
 <script>
 (function () {
 
@@ -2545,7 +2548,7 @@
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=20").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=21").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2573,13 +2576,14 @@
   window.__AJ_READY = true;
 })();
 </script>
-<script src="lib-lwc-4.2.3.js?v=20" async onload="window.__ajLwc && window.__ajLwc()"></script>
-<script src="lib-qrcode-1.4.4.js?v=20" async></script>
-<script src="v15.js?v=20" defer></script>
-<script src="v16-team.js?v=20" defer></script>
-<script src="v17.js?v=20" defer></script>
-<script src="v18.js?v=20" defer></script>
-<script src="v19.js?v=20" defer></script>
-<script src="v20.js?v=20" defer></script>
+<script src="lib-lwc-4.2.3.js?v=21" async onload="window.__ajLwc && window.__ajLwc()"></script>
+<script src="lib-qrcode-1.4.4.js?v=21" async></script>
+<script src="v15.js?v=21" defer></script>
+<script src="v16-team.js?v=21" defer></script>
+<script src="v17.js?v=21" defer></script>
+<script src="v18.js?v=21" defer></script>
+<script src="v19.js?v=21" defer></script>
+<script src="v20.js?v=21" defer></script>
+<script src="v21.js?v=21" defer></script>
 </body>
 </html>

@@ -43,7 +43,7 @@
     markets: ["الكل", "الأسواق", "chart"], "new": ["جديد", "الإدراجات الجديدة", "star"],
     trade: ["فوري", "التداول الفوري", "swap"], futures: ["عقود", "العقود الآجلة", "layers"], orders: ["أوامري", "أوامري المفتوحة", "list"],
     portfolio: ["المحفظة", "المحفظة والرصيد", "wallet"], xpaper: ["محفظتي", "المحفظة التجريبية", "flask"],
-    smart: ["تحليل", "التحليل الذكي", "ai"], auto: ["تلقائي", "التداول التلقائي", "bolt"], alerts: ["تنبيهات", "التنبيهات", "bell"],
+    xsmart: ["ذكي", "التداول الذكي", "ai"], smart: ["تحليل", "التحليل الذكي", "ai"], auto: ["تلقائي", "التداول التلقائي", "bolt"], alerts: ["تنبيهات", "التنبيهات", "bell"],
     xteam: ["الزملاء", "إدارة الزملاء", "users"]
   };
   var DENY = { team: { auto: 1, orders: 1, portfolio: 1, xteam: 1 }, guest: { auto: 1, orders: 1, portfolio: 1, xpaper: 1, xteam: 1 }, owner: { xpaper: 1 } };
@@ -53,7 +53,7 @@
       { id: "home", label: "الأسواق", icon: "chart", tabs: ["markets", "new"] },
       { id: "trade", label: "تداول", icon: "swap", tabs: ["trade", "futures", "orders"] },
       { id: "wallet", label: role() === "team" ? "محفظتي" : "المحفظة", icon: "wallet", tabs: ["portfolio", "xpaper"] },
-      { id: "ai", label: "الذكاء", icon: "ai", tabs: ["smart", "auto", "alerts"] },
+      { id: "ai", label: "الذكاء", icon: "ai", tabs: ["xsmart", "smart", "auto", "alerts"] },
       { id: "more", label: "المزيد", icon: "more", tabs: ["xteam"] }
     ];
     return g.map(function (x) { return { id: x.id, label: x.label, icon: x.icon, tabs: x.tabs.filter(allowed) }; })
