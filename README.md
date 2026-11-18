@@ -49,3 +49,8 @@ https://sbeshr2025-creator.github.io/ajcoin-miniapp/
 - بيانات السوق: مباشرة من Gate.io إن أمكن، وإلا من «لقطة» عامة ينشرها البوت كل دقيقة في
   `sbeshr2025-creator/ajcoin-data` وتُقرأ من raw.githubusercontent.com، ثم من النسخة المحفوظة.
 - اللقطة بيانات سوق عامة فقط (أسعار، شموع، دفتر أوامر) — لا أرصدة ولا مفاتيح ولا عناوين.
+
+### الاستضافة (v19.4 للبوت)
+- الأساسي: **https://ajcoin-adf71f.gitlab.io/** (GitLab Pages — github.io محجوب على يمن نت).
+- مرآة: https://sbeshr2025-creator.github.io/ajcoin-miniapp/
+- النشر للاثنين: `tools/publish.sh "رسالة"` ثم تحديث `MIRROR_REF` في مشروع GitLab، ثم `tools/publish.sh verify`.
