@@ -63,7 +63,10 @@
     var now = Date.now(), ok = window.__AJ_TK_OK || 0, fail = window.__AJ_TK_FAIL || 0, cached = window.__AJ_TK_CACHED || 0;
     var state = "", text = "";
     if (navigator.onLine === false) { state = "off"; text = "📴 لا يوجد اتصال بالإنترنت" + (ok || cached ? " — تُعرض آخر أسعار محفوظة (قبل " + ago(now - (ok || cached)) + ")" : "") + "."; }
-    else if (fail > ok && fail) { state = "warn"; text = "⚠️ تعذر الوصول إلى Gate.io" + (ok || cached ? " — الأسعار المعروضة من قبل " + ago(now - (ok || cached)) : "") + ". نعيد المحاولة تلقائيًا."; }
+    else if (fail && fail > (ok || 0)) { state = "warn"; text = "⚠️ تعذر الوصول إلى Gate.io" + (ok || cached ? " — الأسعار المعروضة من قبل " + ago(now - (ok || cached)) : "") + ". نعيد المحاولة تلقائيًا."; }
+    else if (window.__AJ_SNAP && window.__AJ_SNAP.on && window.__AJ_SNAP.t) { /* v19.3: prices from our snapshot (Gate.io unreachable) */
+      if (now - window.__AJ_SNAP.t > 300000) { state = "warn"; text = "⏳ الأسعار متأخرة (آخر لقطة قبل " + ago(now - window.__AJ_SNAP.t) + ")."; }
+    }
     else if (ok && now - ok > 90000) { state = "warn"; text = "⏳ الأسعار متأخرة (آخر تحديث قبل " + ago(now - ok) + ")."; }
     b.classList.toggle("show", !!state); b.classList.toggle("off", state === "off");
     if (state) b.querySelector(".t").textContent = text;

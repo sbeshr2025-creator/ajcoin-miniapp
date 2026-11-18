@@ -11,11 +11,9 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
-  <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v19.2 -->
-  <script src="inflate.js?v=19.2"></script>
+  <!-- ajcoin-miniapp v19.3: no third-party CDN; market data falls back to our snapshot when Gate.io is unreachable -->
+  <script src="inflate.js?v=19.3"></script>
   <style>
     :root {
       --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
@@ -584,7 +582,8 @@
     <button data-tab="alerts"><span>🔔</span>تنبيه</button>
   </nav>
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="ajdata.js?v=19.3"></script>
+<script src="tg-web-app.js?v=19.3"></script>
 <script>
 (function () {
 
@@ -2511,7 +2510,7 @@
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=19.2").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=19.3").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2539,12 +2538,12 @@
   window.__AJ_READY = true;
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js" async onload="window.__ajLwc && window.__ajLwc()"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" async></script>
-<script src="v15.js?v=19.2" defer></script>
-<script src="v16-team.js?v=19.2" defer></script>
-<script src="v17.js?v=19.2" defer></script>
-<script src="v18.js?v=19.2" defer></script>
-<script src="v19.js?v=19.2" defer></script>
+<script src="lib-lwc-4.2.3.js?v=19.3" async onload="window.__ajLwc && window.__ajLwc()"></script>
+<script src="lib-qrcode-1.4.4.js?v=19.3" async></script>
+<script src="v15.js?v=19.3" defer></script>
+<script src="v16-team.js?v=19.3" defer></script>
+<script src="v17.js?v=19.3" defer></script>
+<script src="v18.js?v=19.3" defer></script>
+<script src="v19.js?v=19.3" defer></script>
 </body>
 </html>

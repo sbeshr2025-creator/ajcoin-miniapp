@@ -1,16 +1,15 @@
-/* ajcoin-miniapp service worker v19.2 — safe updates, never blocks the first screen.
+/* ajcoin-miniapp service worker v19.3 — safe updates, never blocks the first screen.
+   v19.3: every library is self-hosted (no CDN). Old caches, including the v19.2 CDN cache, are dropped.
    - index.html: network with a short timeout, else the cached copy (cache key has NO query: ?bal/?deps never stored)
    - versioned app files (?v=…): cache-first (immutable per version), else network
-   - CDN libraries (Telegram SDK, charts, QR): kept in a persistent cache that survives version bumps,
-     served instantly and refreshed in the background
-   - Gate.io API and everything else: not touched */
-const VERSION = "19.2";
+   - Gate.io API and the market-data snapshot (raw.githubusercontent.com): not touched (always live) */
+const VERSION = "19.3";
 const APP = "ajcoin-v" + VERSION;
-const CDN = "ajcoin-cdn-v1";
 const NAV_TIMEOUT = 2500;
 const PRECACHE = ["./index.html", "./inflate.js?v=" + VERSION, "./v15.js?v=" + VERSION, "./v16-team.js?v=" + VERSION,
-  "./v17.js?v=" + VERSION, "./v18.js?v=" + VERSION, "./v19.js?v=" + VERSION, "./manifest.webmanifest"];
-const CDN_RE = /(^|\.)(jsdelivr\.net|telegram\.org)$/;
+  "./v17.js?v=" + VERSION, "./v18.js?v=" + VERSION, "./v19.js?v=" + VERSION,
+  "./ajdata.js?v=" + VERSION, "./tg-web-app.js?v=" + VERSION, "./lib-lwc-4.2.3.js?v=" + VERSION, "./lib-qrcode-1.4.4.js?v=" + VERSION,
+  "./manifest.webmanifest"];
 
 function timeout(ms) { return new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)); }
 async function putSafe(cacheName, key, resp) {
@@ -35,18 +34,7 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    const cdn = await caches.open(CDN);
-    for (const k of keys) {
-      if (k === APP || k === CDN) continue;
-      try { // keep already-downloaded CDN libraries from older caches
-        const old = await caches.open(k);
-        for (const req of await old.keys()) {
-          let host = ""; try { host = new URL(req.url).hostname; } catch (e) {}
-          if (CDN_RE.test(host) && !(await cdn.match(req))) { const r = await old.match(req); if (r) await cdn.put(req, r); }
-        }
-      } catch (e) {}
-      await caches.delete(k);
-    }
+    for (const k of keys) if (k !== APP) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -95,19 +83,6 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  if (CDN_RE.test(url.hostname)) { // persistent CDN cache, refreshed in background
-    event.respondWith((async () => {
-      const hit = await caches.match(req);
-      if (hit) {
-        // pinned library versions (…@x.y.z) never change; only the small Telegram SDK is refreshed in the background
-        if (/telegram\.org$/.test(url.hostname)) event.waitUntil(fetch(req).then(r => putSafe(CDN, req, r)).catch(() => {}));
-        return hit;
-      }
-      const r = await fetch(req);
-      putSafe(CDN, req, r.clone());
-      return r;
-    })());
-  }
 });
 
 self.addEventListener("message", e => { if (e.data === "skipWaiting") self.skipWaiting(); });
