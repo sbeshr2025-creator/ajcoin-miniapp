@@ -151,19 +151,31 @@
       return;
     }
     var f = s.f || null, fUp = f ? Number(f.up) || 0 : 0;
+    /* v19: live 24h change per coin + estimated 24h P&L of spot holdings (from public tickers) */
+    var TK = (window.Aj && window.Aj.tickers) || {};
+    function chg(cur) { if (cur === "USDT") return 0; var t = TK[cur + "_USDT"]; return t && isFinite(t.change) && t.last > 0 ? Number(t.change) : null; }
+    var d24 = 0, base24 = 0, have24 = false;
+    (s.s || []).forEach(function (r) {
+      var c = chg(r[0]), v = Number(r[3]); if (c == null || !isFinite(v) || v <= 0) return;
+      var t = TK[r[0] + "_USDT"]; if (t && t.last > 0 && r[0] !== "USDT") v = (Number(r[1]) + Number(r[2] || 0)) * t.last;
+      d24 += v * c / (100 + c); base24 += v - v * c / (100 + c); if (r[0] !== "USDT") have24 = true;
+    });
+    var p24 = base24 > 0 ? d24 / base24 * 100 : 0;
+    var line24 = have24 ? '<div class="wl-d24 ' + (d24 >= 0 ? "up" : "down") + '">تغيّر 24 ساعة (الفوري): <b>' + mask((d24 >= 0 ? "+" : "") + num(d24, 4)) + ' USDT</b> · ' + (p24 >= 0 ? "+" : "") + p24.toFixed(2) + '%</div>' : "";
     var html = '<div class="wl-hero">' +
       '<div class="wl-top"><span class="wl-lbl">إجمالي الرصيد التقديري · Gate.io</span><span>' +
       '<button type="button" class="wl-ibtn" id="wl-eye" aria-label="إخفاء أو إظهار الرصيد">' + (S.hide ? "🙈" : "👁") + '</button> ' +
       '<button type="button" class="wl-ibtn" id="wl-refresh" aria-label="تحديث الرصيد">↻</button></span></div>' +
       '<div class="wl-total">' + mask(usd(s.T)) + '<small>USDT</small></div>' +
-      '<div class="wl-sub"><span>آخر تحديث: ' + esc(clock(s.t)) + ' (' + esc(ago(s.t)) + ')</span></div>' +
+      '<div class="wl-sub"><span>آخر تحديث: ' + esc(clock(s.t)) + ' (' + esc(ago(s.t)) + ')</span></div>' + line24 +
       '<div class="wl-split"><div class="wl-mini"><span>الفوري</span><b>' + mask(usd(s.st)) + '</b></div>' +
       '<div class="wl-mini"><span>العقود (مع غير المحقق)</span><b>' + (f ? mask(usd((Number(f.tot) || 0) + fUp)) : "—") + '</b></div></div></div>';
     html += '<div class="wl-sec"><h4>الأصول الفورية</h4><span>' + (s.s || []).length + ' عملة</span></div>';
     if ((s.s || []).length) {
       html += (s.s || []).map(function (r) {
-        var cur = r[0], av = r[1], lk = r[2], val = r[3];
-        return '<div class="wl-row">' + icon(cur) + '<div class="m"><b>' + esc(cur) + '</b><small>' +
+        var cur = r[0], av = r[1], lk = r[2], val = r[3], c = chg(cur);
+        var badge = c == null || cur === "USDT" ? "" : ' <span class="wl-chg ' + (c >= 0 ? "up" : "down") + '">' + (c >= 0 ? "+" : "") + c.toFixed(2) + "%</span>";
+        return '<div class="wl-row">' + icon(cur) + '<div class="m"><b>' + esc(cur) + badge + '</b><small>' +
           (lk ? "محتجز " + mask(num(lk)) : "متاح بالكامل") + '</small></div>' +
           '<div class="v"><b>' + mask(num(Number(av) + Number(lk || 0))) + '</b><small>' + (val == null ? "بلا سعر" : "≈ " + mask(usd(val)) + " USDT") + '</small></div></div>';
       }).join("");
@@ -244,7 +256,8 @@
     window.AjV17 = {
       snap: function () { return S.snap ? { t: S.snap.t, coins: (S.snap.s || []).length } : null; },
       total: function () { return role() === "owner" && S.snap && isFinite(Number(S.snap.T)) ? Number(S.snap.T) : null; },
-      hidden: function () { return !!S.hide; }
+      hidden: function () { return !!S.hide; },
+      render: function () { if (role() === "owner") render(); }
     };
     try { document.dispatchEvent(new CustomEvent("aj:bal")); } catch (x) {}
   }

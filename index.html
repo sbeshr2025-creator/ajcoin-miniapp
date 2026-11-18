@@ -14,11 +14,11 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v18-ui -->
+  <!-- ajcoin-miniapp v19 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-  <script src="inflate.js"></script>
+  <script src="inflate.js?v=19"></script>
   <style>
     :root {
       --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
@@ -727,7 +727,7 @@
     if (e && e.p) return e.p;
     const p = Promise.resolve().then(fn).then(v => { memCache[key] = { t: Date.now(), v: v }; return v; });
     memCache[key] = Object.assign(e || {}, { p: p });
-    p.finally(() => { if (memCache[key]) memCache[key].p = null; });
+    p.finally(() => { if (memCache[key]) memCache[key].p = null; }).catch(() => {}); /* v19: no unhandled rejections when offline */
     return p;
   }
 
@@ -1657,6 +1657,7 @@
     if (!r.ok) throw new Error("http " + r.status);
     return r.json();
   }
+  let tkFails = 0, tkSavedAt = 0;
   async function loadTickers() {
     try {
       const data = await cachedFetch("tickers", 8000, () => fetchJson(GATE + "/spot/tickers"));
@@ -1677,13 +1678,40 @@
         }
       });
       if (next.length) allSpot = next;
+      tkFails = 0; window.__AJ_TK_OK = Date.now();
+      try {
+        if (Date.now() - tkSavedAt > 60000) {
+          tkSavedAt = Date.now();
+          const compact = allSpot.map(p => { const t = tickers[p.pair] || {}; return [p.pair, t.last || 0, +(t.change || 0).toFixed(2), Math.round(t.quote || 0)]; });
+          localStorage.setItem("aj_tk_v1", JSON.stringify({ t: Date.now(), d: compact }));
+        }
+      } catch (e) {}
       document.getElementById("dot").classList.remove("off");
       document.getElementById("src").textContent = "Gate.io";
       renderMarkets(); renderHead(); updateEst(); try { renderAutoTrend(); } catch (e) {}
     } catch (e) {
       document.getElementById("dot").classList.add("off");
-      toast("تعذر تحديث الأسعار حالياً", "err");
+      tkFails++; window.__AJ_TK_FAIL = Date.now();
+      if (tkFails === 1 && navigator.onLine !== false) toast("تعذر تحديث الأسعار — سأعيد المحاولة تلقائيًا", "err");
+      try { document.dispatchEvent(new CustomEvent("aj:net", { detail: { ok: false } })); } catch (x) {}
     }
+  }
+  /* v19: instant first paint from the last cached prices (USDT pairs only, no account data) */
+  function hydrateTickers() {
+    try {
+      const c = JSON.parse(localStorage.getItem("aj_tk_v1") || "null");
+      if (!c || !Array.isArray(c.d) || !c.d.length || Date.now() - c.t > 3 * 86400e3) return false;
+      const next = [];
+      c.d.forEach(r => {
+        if (!Array.isArray(r) || !/_USDT$/.test(String(r[0]))) return;
+        if (!tickers[r[0]]) tickers[r[0]] = { last: Number(r[1]) || 0, change: Number(r[2]) || 0, quote: Number(r[3]) || 0, base: 0, ask: 0, bid: 0 };
+        next.push({ symbol: baseSym(r[0]), pair: r[0] });
+      });
+      if (next.length > allSpot.length) allSpot = next;
+      window.__AJ_TK_CACHED = c.t;
+      renderMarkets(); renderHead();
+      return true;
+    } catch (e) { return false; }
   }
   function renderHead() {
     const t = tickers[pair] || {};
@@ -2390,14 +2418,15 @@
 
 
   initDepositStore();
+  try { hydrateTickers(); } catch (e) {}
   loadTickers(); loadCandles(); loadBook(); loadTrades();
-  setInterval(function () { try { loadTickers(); } catch (e) {} }, 20000);
+  setInterval(function () { try { if (!document.hidden) loadTickers(); } catch (e) {} }, 20000);
   setInterval(loadBook, 4000);
   setInterval(loadTrades, 5000);
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=18").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=19").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2424,9 +2453,10 @@
   window.__AJ_READY = true;
 })();
 </script>
-<script src="v15.js" defer></script>
-<script src="v16-team.js" defer></script>
-<script src="v17.js" defer></script>
-<script src="v18.js" defer></script>
+<script src="v15.js?v=19" defer></script>
+<script src="v16-team.js?v=19" defer></script>
+<script src="v17.js?v=19" defer></script>
+<script src="v18.js?v=19" defer></script>
+<script src="v19.js?v=19" defer></script>
 </body>
 </html>

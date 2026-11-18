@@ -249,7 +249,7 @@
     var r = role();
     root.innerHTML = '<div class="bd"></div><div class="sh"><div class="grab"></div><h3>كل الأقسام</h3><div class="grid">' +
       all.map(function (t) { return '<button type="button" class="tile' + (t === curTab ? " on" : "") + '" data-mt="' + t + '">' + svg(TAB[t][2]) + esc(TAB[t][1]) + "</button>"; }).join("") +
-      '</div><div class="foot">' + (r === "owner" ? "وضع المالك · التنفيذ الحقيقي يتطلب تأكيدك ✅ في المحادثة" : r === "team" ? "وضع الزميل · تداول تجريبي واقتراحات فقط" : "وضع الزائر · عرض الأسعار فقط — أرسل /join للبوت لطلب الانضمام") + " · v18</div></div>";
+      '</div><div class="foot">' + (r === "owner" ? "وضع المالك · التنفيذ الحقيقي يتطلب تأكيدك ✅ في المحادثة" : r === "team" ? "وضع الزميل · تداول تجريبي واقتراحات فقط" : "وضع الزائر · عرض الأسعار فقط — أرسل /join للبوت لطلب الانضمام") + " · v19</div></div>";
     root.classList.add("open"); moreOpen = true; hap("light");
     savedCmd = window.AjCmd || null;
     window.AjCmd = {
