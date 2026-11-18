@@ -28,6 +28,16 @@
       ".wl-chg{display:inline-block;margin-inline-start:6px;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:750;direction:ltr;vertical-align:middle}",
       ".wl-chg.up{color:var(--up);background:color-mix(in srgb,var(--up) 14%,transparent)}.wl-chg.down{color:var(--down);background:color-mix(in srgb,var(--down) 14%,transparent)}",
       "#offline-bar{display:none!important}",
+      /* v19.1 price motion: colour-only flash (no layout shift), RTL-safe change badges */
+      "#head-px,#sheet-px,#mkt .row .last{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}",
+      "#head-chg,.chg{direction:ltr;unicode-bidi:isolate;display:inline-block;font-variant-numeric:tabular-nums;white-space:nowrap}",
+      ".chg.flat{color:var(--muted)}",
+      ".px-up{animation:ajPxUpA .9s ease-out}.px-up2{animation:ajPxUpB .9s ease-out}",
+      ".px-down{animation:ajPxDnA .9s ease-out}.px-down2{animation:ajPxDnB .9s ease-out}",
+      "@keyframes ajPxUpA{0%,45%{color:var(--up)}}@keyframes ajPxUpB{0%,45%{color:var(--up)}}",
+      "@keyframes ajPxDnA{0%,45%{color:var(--down)}}@keyframes ajPxDnB{0%,45%{color:var(--down)}}",
+      ".flash-up,.flash-down{animation:none!important}",
+      "#v19-movers button i{min-width:4.2em;text-align:left}",
       "input,select,textarea{font-family:inherit}",
       ".hint,.banner,.wl-note{text-wrap:pretty}",
       "[dir=rtl] .px,[dir=rtl] .last,.addrbox{unicode-bidi:plaintext}"
@@ -79,13 +89,44 @@
     if (rows.length < 6) { box.style.display = "none"; return; }
     rows.sort(function (a, b) { return b[1] - a[1]; });
     var top = rows.slice(0, 4), bot = rows.slice(-3).reverse();
-    var sig = top.concat(bot).map(function (r) { return r[0] + r[1].toFixed(1); }).join("|");
-    if (sig === moversSig) return; moversSig = sig;
+    var all = top.concat(bot);
+    var sig = all.map(function (r) { return r[0]; }).join("|");
+    var chips = box.querySelectorAll("[data-mp]");
+    if (sig === moversSig && chips.length === all.length) {
+      all.forEach(function (r, i) {
+        var b = chips[i], up = r[1] >= 0, txt = (up ? "+" : "") + r[1].toFixed(1) + "%", it = b.querySelector("i");
+        if (it.textContent !== txt) it.textContent = txt;
+        var cls = up ? "up" : "down"; if (b.className !== cls) b.className = cls;
+      });
+      return;
+    }
+    moversSig = sig;
+    var keepScroll = box.scrollLeft;
     function chip(r) { var up = r[1] >= 0; return '<button type="button" class="' + (up ? "up" : "down") + '" data-mp="' + esc(r[0]) + '">' + esc(r[0].replace("_USDT", "")) + "<i>" + (up ? "+" : "") + r[1].toFixed(1) + "%</i></button>"; }
     var wasHidden = box.style.display === "none" || !box.innerHTML;
     box.style.display = "";
     if (wasHidden) setTimeout(function () { try { window.dispatchEvent(new Event("resize")); } catch (e) {} }, 0);
     box.innerHTML = '<span class="lbl">🔥 الأكثر صعودًا</span>' + top.map(chip).join("") + '<span class="lbl">📉 الأكثر هبوطًا</span>' + bot.map(chip).join("");
+    box.scrollLeft = keepScroll;
+  }
+
+  /* ---------- market rows: flash only when the price really changed since it was last shown ---------- */
+  function rowFlash() {
+    var a = Aj(); if (!a.pxShown || !a.tickers) return;
+    document.querySelectorAll("#mkt .row .last[data-p]").forEach(function (el) {
+      var p = el.getAttribute("data-p"), t = a.tickers[p]; if (!t || !(t.last > 0)) return;
+      var v = Number(t.last), shown = a.pxShown(p);
+      el.setAttribute("data-k", p); el.setAttribute("data-v", String(v));
+      if (shown > 0 && shown !== v && a.fmtPx(shown, p) !== el.textContent && !document.hidden) {
+        el.classList.add(v > shown ? "px-up" : "px-down");
+      }
+      a.pxMark(p, v);
+    });
+  }
+  function watchRows() {
+    var box = $("mkt"); if (!box) return;
+    new MutationObserver(rowFlash).observe(box, { childList: true });
+    rowFlash();
   }
 
   /* ---------- boot ---------- */
@@ -95,18 +136,18 @@
     var ok = window.__AJ_TK_OK || 0;
     if (ok !== lastOk) {
       lastOk = ok;
-      var mk = $("tab-markets"); if (mk && !mk.classList.contains("hidden")) movers(); else moversSig = moversSig || "";
+      var mk = $("tab-markets"); if (mk && !mk.classList.contains("hidden") && !document.hidden) movers();
       var pf = $("tab-portfolio");
       if (pf && !pf.classList.contains("hidden") && window.AjV17 && window.AjV17.render) window.AjV17.render();
     }
   }
   function boot() {
     if (!window.Aj || !document.querySelector("header")) { setTimeout(boot, 80); return; }
-    css(); netBanner(); movers();
+    css(); netBanner(); movers(); watchRows();
     window.addEventListener("online", function () { try { Aj().loadTickers(); } catch (e) {} netBanner(); });
     window.addEventListener("offline", netBanner);
     document.addEventListener("aj:net", netBanner);
-    document.addEventListener("click", function (ev) { if (ev.target.closest && ev.target.closest('#v18-nav [data-g="home"],#v18-sub [data-st="markets"]')) setTimeout(function () { moversSig = ""; movers(); }, 60); });
+    document.addEventListener("click", function (ev) { if (ev.target.closest && ev.target.closest('#v18-nav [data-g="home"],#v18-sub [data-st="markets"]')) setTimeout(movers, 60); });
     setInterval(tick, 3000);
     window.AjV19 = { net: netBanner, movers: function () { moversSig = ""; movers(); }, state: function () { return { banner: lastState, movers: document.querySelectorAll("#v19-movers [data-mp]").length }; } };
   }

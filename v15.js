@@ -217,6 +217,8 @@
 
   function animNumber(el, next) {
     if (!el) return;
+    /* v19.1: no fake count-up between prices; stable digits; flash only on a real visible change */
+    if (Aj().pxSet) { Aj().pxSet(el, next, el.id === "head-px" ? Aj().pair : (sheet.pair || Aj().pair)); return; }
     next = Number(next);
     if (!isFinite(next)) { el.textContent = "—"; return; }
     var prev = Number(el.getAttribute("data-v"));
@@ -699,10 +701,16 @@
       high: res.high_24h != null ? Number(res.high_24h) : prev.high,
       low: res.low_24h != null ? Number(res.low_24h) : prev.low,
       ask: res.lowest_ask != null ? Number(res.lowest_ask) : prev.ask,
-      bid: res.highest_bid != null ? Number(res.highest_bid) : prev.bid
+      bid: res.highest_bid != null ? Number(res.highest_bid) : prev.bid,
+      _ws: Date.now()
     });
+    if (last && a.pxSet && !document.hidden) {
+      var rl = document.querySelector('#mkt .last[data-p="' + pair + '"]');
+      if (rl) a.pxSet(rl, last, pair);
+    }
     if (sheet.open && sheet.pair === pair) refreshSheetPx();
     else if (a.pair === pair && last) animNumber($("head-px"), last);
+    if (a.pair === pair && last && a.liveCandle && !document.hidden) a.liveCandle(last);
   }
   function applyFutTick(res) {
     if (!res) return;

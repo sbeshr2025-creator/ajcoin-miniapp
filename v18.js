@@ -126,6 +126,8 @@
       "#mkt .row .chgc{justify-self:end;min-width:62px;text-align:center;padding:4px 6px;border-radius:8px;font-size:var(--fs-s);font-weight:750;direction:ltr;font-variant-numeric:tabular-nums}",
       "#mkt .row .chgc.bid{background:color-mix(in srgb,var(--up) 16%,transparent);color:var(--up)}",
       "#mkt .row .chgc.ask{background:color-mix(in srgb,var(--down) 16%,transparent);color:var(--down)}",
+      ".v18-sp.draw path:last-child{stroke-dasharray:300;stroke-dashoffset:300;animation:v18draw .7s ease-out forwards}.v18-sp.draw path:first-child{animation:v18fade .7s ease-out}",
+      "@keyframes v18draw{to{stroke-dashoffset:0}}",
       ".v18-sp{display:block;width:46px;height:22px}.v18-sp svg{width:46px;height:22px;display:block;overflow:visible}",
       ".v18-sp.ld{border-radius:6px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--text) 7%,transparent),transparent);background-size:200% 100%;animation:ajSkel 1.4s linear infinite}",
       /* pull to refresh */
@@ -311,11 +313,15 @@
   var SP = {}, Q = [], inflight = 0, SPK = "aj_sp18";
   try { var c0 = JSON.parse(sessionStorage.getItem(SPK) || "{}"); if (c0 && typeof c0 === "object") SP = c0; } catch (e) {}
   function spSave() { try { var k = Object.keys(SP); if (k.length > 150) k.slice(0, k.length - 150).forEach(function (x) { delete SP[x]; }); sessionStorage.setItem(SPK, JSON.stringify(SP)); } catch (e) {} }
-  function spSvg(pts) {
+  function spSvg(pts, pair) {
     if (!pts || pts.length < 2) return "";
+    /* v19.1: end the line at the live price and colour it like the 24h badge next to it */
+    var tk = pair && Aj().tickers && Aj().tickers[pair];
+    if (tk && tk.last > 0) pts = pts.concat([Number(tk.last)]);
     var mn = Math.min.apply(null, pts), mx = Math.max.apply(null, pts), rg = mx - mn || 1, W = 46, H = 22;
     var d = pts.map(function (v, i) { return (i ? "L" : "M") + (i * W / (pts.length - 1)).toFixed(1) + " " + (H - 2 - (v - mn) / rg * (H - 4)).toFixed(1); }).join("");
-    var col = pts[pts.length - 1] >= pts[0] ? "var(--up)" : "var(--down)";
+    var chg = tk && isFinite(tk.change) ? Number(tk.change) : null;
+    var col = (chg != null ? chg >= 0 : pts[pts.length - 1] >= pts[0]) ? "var(--up)" : "var(--down)";
     return '<svg viewBox="0 0 46 22" preserveAspectRatio="none" aria-hidden="true"><path d="' + d + 'L46 22L0 22Z" fill="' + col + '" opacity=".12"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>';
   }
   function spark() {
@@ -325,7 +331,7 @@
       var p = row.getAttribute("data-pair"), el = row.querySelector(".v18-sp");
       if (!el) { el = document.createElement("span"); el.className = "v18-sp"; var lastEl = row.querySelector(".last"); row.insertBefore(el, lastEl || null); }
       var c = SP[p];
-      if (c && now - c.t < 15 * 60e3) { if (!el.firstChild) { el.classList.remove("ld"); el.innerHTML = spSvg(c.p); } }
+      if (c && now - c.t < 15 * 60e3) { if (!el.firstChild) { el.classList.remove("ld"); el.innerHTML = spSvg(c.p, p); } }
       else { el.classList.add("ld"); if (Q.indexOf(p) < 0) Q.push(p); }
     });
     pump();
@@ -342,7 +348,7 @@
             var pts = (Array.isArray(rows) ? rows : []).map(function (x) { return Number(Array.isArray(x) ? x[2] : x && x.c); }).filter(isFinite);
             SP[p] = { t: Date.now(), p: pts.length > 1 ? pts : [] };
             var el = document.querySelector('#mkt .row[data-pair="' + p + '"] .v18-sp');
-            if (el) { el.classList.remove("ld"); el.innerHTML = spSvg(SP[p].p); }
+            if (el) { el.classList.remove("ld"); el.innerHTML = spSvg(SP[p].p, p); if (!matchMedia("(prefers-reduced-motion: reduce)").matches) el.classList.add("draw"); }
           })
           .catch(function () { SP[p] = { t: Date.now() - 12 * 60e3, p: [] }; })
           .then(function () { inflight--; spSaveD(); pump(); });

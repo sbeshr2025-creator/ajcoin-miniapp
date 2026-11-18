@@ -14,11 +14,11 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v19 -->
+  <!-- ajcoin-miniapp v19.1 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-  <script src="inflate.js?v=19"></script>
+  <script src="inflate.js?v=19.1"></script>
   <style>
     :root {
       --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
@@ -738,6 +738,40 @@
     if (Math.abs(n) >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
     if (Math.abs(n) >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
     return n.toPrecision(4);
+  }
+  /* v19.1: stable price digits per pair (no width jumps) + flash only on a real visible change */
+  const PXDEC = {}, PXSHOWN = {};
+  function decOf(n) {
+    let str = String(Math.abs(n));
+    if (/e/i.test(str)) str = Math.abs(n).toFixed(10).replace(/0+$/, "");
+    const i = str.indexOf(".");
+    return i < 0 ? 0 : Math.min(8, str.length - i - 1);
+  }
+  function fmtPx(n, key) {
+    n = Number(n);
+    if (!isFinite(n) || n <= 0) return "—";
+    let dec = decOf(n);
+    if (key) { dec = Math.max(PXDEC[key] || 0, dec); PXDEC[key] = dec; }
+    if (!key && dec > 6) dec = 6;
+    return n.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+  function pxSet(el, n, key) {
+    if (!el) return;
+    n = Number(n);
+    const txt = fmtPx(n, key);
+    const sameKey = el.getAttribute("data-k") === String(key || "");
+    const prev = Number(el.getAttribute("data-v"));
+    const oldTxt = el.textContent;
+    if (oldTxt !== txt) el.textContent = txt;
+    el.setAttribute("data-k", String(key || ""));
+    if (isFinite(n) && n > 0) { el.setAttribute("data-v", String(n)); if (key) PXSHOWN[key] = n; }
+    if (!sameKey || !isFinite(prev) || !(n > 0) || oldTxt === txt || n === prev) return;
+    const up = n > prev;
+    const a = up ? "px-up" : "px-down", b = a + "2";
+    const useB = el.classList.contains(a);
+    el.classList.remove("px-up", "px-up2", "px-down", "px-down2");
+    el.classList.add(useB ? b : a);
+    el.setAttribute("data-dir", up ? "up" : "down");
   }
   function volFmt(n) {
     n = Number(n) || 0;
@@ -1666,10 +1700,12 @@
       (data || []).forEach(t => {
         const id = String(t.currency_pair || "");
         if (!id.endsWith("_USDT")) return;
+        const pv = tickers[id];
+        const wsFresh = pv && pv._ws && Date.now() - pv._ws < 30000; /* v19.1: never step back to an older REST price */
         tickers[id] = {
-          last: Number(t.last), change: Number(t.change_percentage || 0),
+          last: wsFresh && pv.last ? pv.last : Number(t.last), change: wsFresh && pv.change != null ? pv.change : Number(t.change_percentage || 0),
           quote: Number(t.quote_volume || 0), base: Number(t.base_volume || 0),
-          ask: Number(t.lowest_ask || 0), bid: Number(t.highest_bid || 0)
+          ask: Number(t.lowest_ask || 0), bid: Number(t.highest_bid || 0), _ws: pv && pv._ws
         };
         TRADEABLE.add(id);
         if (!seen.has(id)) {
@@ -1716,12 +1752,14 @@
   function renderHead() {
     const t = tickers[pair] || {};
     document.getElementById("head-pair").textContent = pair.replace("_", "/");
-    document.getElementById("head-px").textContent = t.last ? fmt(t.last) : "—";
+    pxSet(document.getElementById("head-px"), t.last, pair);
     const el = document.getElementById("head-chg");
     if (t.change == null || !isFinite(t.change)) { el.textContent = ""; return; }
-    const up = t.change >= 0;
-    el.textContent = (up ? "+" : "") + Number(t.change).toFixed(2) + "%";
-    el.className = "chg " + (up ? "up" : "down");
+    const ch = Number(t.change), up = ch > 0, flat = ch === 0;
+    const txt = (flat ? "• " : up ? "▲ +" : "▼ ") + ch.toFixed(2) + "%";
+    if (el.textContent !== txt) el.textContent = txt;
+    const cls = "chg " + (flat ? "flat" : up ? "up" : "down");
+    if (el.className !== cls) el.className = cls;
   }
   function filteredMarkets() {
     const q = (document.getElementById("search").value || "").trim().toUpperCase();
@@ -1759,7 +1797,7 @@
       html += '<div class="row abs' + (p.pair === pair ? " on" : "") + '" style="top:' + (i * ROW_H) + 'px" data-pair="' + p.pair + '">'
         + '<button class="star ' + star + '" data-fav="' + p.pair + '">' + (star ? "★" : "☆") + "</button>"
         + '<div class="sym">' + p.symbol + "<small> / USDT</small><div class=\"vol\">حجم 24س " + volFmt(t.quote) + "</div></div>"
-        + '<div class="last">' + (t.last ? fmt(t.last) : "—") + "</div>"
+        + '<div class="last" data-p="' + p.pair + '">' + (t.last ? fmtPx(t.last, p.pair) : "—") + "</div>"
         + '<div class="chgc ' + (up ? "bid" : "ask") + '">' + (t.change == null || !isFinite(t.change) ? "—" : ((up ? "+" : "") + Number(t.change || 0).toFixed(2) + "%")) + "</div>"
         + "</div>";
     }
@@ -1897,6 +1935,16 @@
   }
   document.querySelector(".inds").addEventListener("change", applyIndicators);
 
+  let chartKey = "";
+  function liveCandle(px) {
+    px = Number(px);
+    if (!candleSeries || !candles.length || !(px > 0)) return;
+    const c = candles[candles.length - 1];
+    if (!c || chartKey !== pair + ":" + tf) return;
+    if (px === c.close) return;
+    c.close = px; if (px > c.high) c.high = px; if (px < c.low) c.low = px;
+    try { candleSeries.update({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close }); } catch (e) {}
+  }
   async function loadCandles() {
     try {
       const data = await cachedFetch("cdl:" + pair + ":" + tf, 20000, () => fetchJson(GATE + "/spot/candlesticks?currency_pair=" + encodeURIComponent(pair) + "&interval=" + encodeURIComponent(tf) + "&limit=300"));
@@ -1906,9 +1954,12 @@
       })).filter(c => isFinite(c.time) && isFinite(c.close));
       candles.sort((a, b) => a.time - b.time);
       if (ensureChart()) {
+        const key = pair + ":" + tf;
+        const first = chartKey !== key;
+        chartKey = key;
         candleSeries.setData(candles);
         applyIndicators();
-        chart.timeScale().fitContent();
+        if (first) chart.timeScale().fitContent(); /* v19.1: keep the user's zoom/scroll on refreshes */
         const sk = document.getElementById("chart-skel");
         if (sk) sk.classList.add("hidden");
       }
@@ -2426,7 +2477,7 @@
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=19").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=19.1").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2448,15 +2499,16 @@
     futMaxLev: contractMaxLev, fillFutSelect: fillFutSelect, updateFutEst: updateFutEst, loadTickers: loadTickers,
     encodeStartParam: encodeStartParam, syncTelegramChrome: syncTelegramChrome,
     inflateRawBytes: inflateRawBytes, b64urlToBytes: b64urlToBytes,
+    fmtPx: fmtPx, pxSet: pxSet, liveCandle: liveCandle, chartView: function (r) { try { if (!chart) return null; if (r) chart.timeScale().setVisibleLogicalRange(r); return chart.timeScale().getVisibleLogicalRange(); } catch (e) { return null; } }, reloadCandles: function () { return loadCandles(); }, get lastCandle() { return candles[candles.length - 1] || null; }, pxShown: function (k) { return PXSHOWN[k]; }, pxMark: function (k, v) { if (k && v > 0) PXSHOWN[k] = Number(v); },
     currentTab: function () { return currentTabName; }
   };
   window.__AJ_READY = true;
 })();
 </script>
-<script src="v15.js?v=19" defer></script>
-<script src="v16-team.js?v=19" defer></script>
-<script src="v17.js?v=19" defer></script>
-<script src="v18.js?v=19" defer></script>
-<script src="v19.js?v=19" defer></script>
+<script src="v15.js?v=19.1" defer></script>
+<script src="v16-team.js?v=19.1" defer></script>
+<script src="v17.js?v=19.1" defer></script>
+<script src="v18.js?v=19.1" defer></script>
+<script src="v19.js?v=19.1" defer></script>
 </body>
 </html>

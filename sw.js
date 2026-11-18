@@ -1,5 +1,5 @@
 /* Network-first for the app page so updates (v17-wallet) go live; cache CDN shells only. */
-const CACHE = "ajcoin-v19";
+const CACHE = "ajcoin-v19.1";
 self.addEventListener("install", e => { self.skipWaiting(); });
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
