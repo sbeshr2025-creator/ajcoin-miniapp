@@ -1,4 +1,4 @@
-/* ajcoin-miniapp v19.3 — market data that works without a VPN.
+/* ajcoin-miniapp v19.3/v20 — market data that works without a VPN.
    Every request to the public Gate.io REST API goes through this layer:
      1) direct Gate.io (fast path when reachable)
      2) public snapshot published by our bot to raw.githubusercontent.com (no Gate needed)
@@ -106,8 +106,8 @@
   async function fromSnapshot(path, q) {
     var pair = q.get("currency_pair") || q.get("contract") || "";
     var limit = Number(q.get("limit") || 0);
-    if (path === "/spot/tickers") { var m = await minute(); return objs(m.s, S_KEYS, true); }
-    if (path === "/futures/usdt/tickers") { var m2 = await minute(); return objs(m2.f, F_KEYS, true, function (o) { o.volume_24h_base = o.volume_24h; }); }
+    if (path === "/spot/tickers") { var m = await minute(); return objs(pair ? m.s.filter(function (r) { return r[0] === pair; }) : m.s, S_KEYS, true); }
+    if (path === "/futures/usdt/tickers") { var m2 = await minute(); return objs(pair ? m2.f.filter(function (r) { return r[0] === pair; }) : m2.f, F_KEYS, true, function (o) { o.volume_24h_base = o.volume_24h; }); }
     if (path === "/spot/order_book") { var m3 = await minute(); if (m3.ob && m3.ob[pair]) return m3.ob[pair]; return null; }
     if (path === "/spot/trades") { var m4 = await minute(); if (m4.tr && m4.tr[pair]) return m4.tr[pair]; return null; }
     if (path === "/spot/candlesticks" || path === "/futures/usdt/candlesticks") {

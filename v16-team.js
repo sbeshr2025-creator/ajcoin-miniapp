@@ -498,7 +498,7 @@
         if (hd && hd.parentNode) hd.parentNode.insertBefore(bn, hd.nextSibling);
       }
     }
-    window.AjV16 = { role: role, snap: function () { return state.snap; }, team: function () { return state.team; }, show: showMine };
+    window.AjV16 = { role: role, snap: function () { return state.snap; }, team: function () { return state.team; }, show: showMine, px: spotPx, fpx: futPx };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { setTimeout(boot, 0); });
   else setTimeout(boot, 0);

@@ -12,8 +12,8 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v19.3: no third-party CDN; market data falls back to our snapshot when Gate.io is unreachable -->
-  <script src="inflate.js?v=19.3"></script>
+  <!-- ajcoin-miniapp v20: indicators, heatmap, watchlist, risk calculator, allocation. No third-party CDN; market data falls back to our snapshot when Gate.io is unreachable -->
+  <script src="inflate.js?v=20"></script>
   <style>
     :root {
       --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
@@ -79,8 +79,8 @@
     .inds { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
     .inds label { font-size: 12px; color: var(--muted); display: flex; gap: 4px; align-items: center;
       background: var(--card); padding: 5px 9px; border-radius: 999px; border: 1px solid var(--line); }
-    #chart-wrap, #rsi-wrap { direction: ltr; width: 100%; background: var(--card); border-radius: var(--radius); overflow: hidden; }
-    #chart { height: 260px; width: 100%; } #rsi-wrap { margin-top: 6px; } #rsi { height: 96px; width: 100%; }
+    #chart-wrap, #rsi-wrap, #macd-wrap { direction: ltr; width: 100%; background: var(--card); border-radius: var(--radius); overflow: hidden; }
+    #chart { height: 260px; width: 100%; } #rsi-wrap, #macd-wrap { margin-top: 6px; } #rsi, #macd { height: 96px; width: 100%; }
     .books { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
     @media (max-width: 420px) { .books { grid-template-columns: 1fr; } }
     .card { background: var(--card); border-radius: var(--radius); padding: 10px; }
@@ -305,11 +305,14 @@
     <div class="tf" id="tf"></div>
     <div id="chart-wrap"><div class="skel chart" id="chart-skel"></div><div id="chart"></div></div>
     <div id="rsi-wrap" class="hidden"><div id="rsi"></div></div>
+    <div id="macd-wrap" class="hidden"><div id="macd"></div></div>
     <div class="inds">
       <label><input type="checkbox" id="ind-ma20" checked /> MA20</label>
       <label><input type="checkbox" id="ind-ma50" checked /> MA50</label>
+      <label><input type="checkbox" id="ind-ema" /> EMA21</label>
       <label><input type="checkbox" id="ind-bb" /> Bollinger</label>
       <label><input type="checkbox" id="ind-rsi" /> RSI</label>
+      <label><input type="checkbox" id="ind-macd" /> MACD</label>
       <label><input type="checkbox" id="ind-vol" checked /> الحجم</label>
     </div>
     <div class="books">
@@ -582,8 +585,8 @@
     <button data-tab="alerts"><span>🔔</span>تنبيه</button>
   </nav>
 
-<script src="ajdata.js?v=19.3"></script>
-<script src="tg-web-app.js?v=19.3"></script>
+<script src="ajdata.js?v=20"></script>
+<script src="tg-web-app.js?v=20"></script>
 <script>
 (function () {
 
@@ -722,7 +725,7 @@
   let cancelKind = "spot";
   let tickers = {};
   let candles = [];
-  let chart, candleSeries, volSeries, ma20s, ma50s, bbU, bbL, bbM, rsiChart, rsiSeries;
+  let chart, candleSeries, volSeries, ma20s, ma50s, bbU, bbL, bbM, rsiChart, rsiSeries, emaS, macdChart, macdHist, macdLine, macdSig;
   let favs = [];
   try { favs = JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); } catch (e) { favs = []; }
   if (!Array.isArray(favs)) favs = [];
@@ -1801,6 +1804,7 @@
     rows.sort((a, b) => {
       const fa = favs.includes(a.pair) ? 0 : 1, fb = favs.includes(b.pair) ? 0 : 1;
       if (fa !== fb) return fa - fb;
+      if (!fa && !fb && mktSort === "fav") return favs.indexOf(a.pair) - favs.indexOf(b.pair); /* v20: watchlist order */
       const ta = tickers[a.pair] || {}, tb = tickers[b.pair] || {};
       if (mktSort === "chg") return (Number(tb.change) || 0) - (Number(ta.change) || 0);
       if (mktSort === "name") return a.symbol.localeCompare(b.symbol);
@@ -1896,6 +1900,17 @@
     }
     return out;
   }
+  function ema(arr, n) { /* v20 */
+    const out = new Array(arr.length).fill(null), k = 2 / (n + 1);
+    let prev = null, sum = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const v = arr[i]; if (v == null) continue;
+      if (prev == null) { sum += v; if (i + 1 >= n) { prev = sum / n; out[i] = prev; } continue; }
+      prev = v * k + prev * (1 - k); out[i] = prev;
+    }
+    return out;
+  }
+  try { const st = JSON.parse(localStorage.getItem("aj-inds-v20") || "null"); if (st) Object.keys(st).forEach(id => { const el = document.getElementById(id); if (el && el.type === "checkbox") el.checked = !!st[id]; }); } catch (e) {}
   function rsi(closes, n) {
     const out = [];
     let g = 0, l = 0;
@@ -1937,7 +1952,12 @@
     rsiChart = LightweightCharts.createChart(document.getElementById("rsi"), Object.assign({}, opts, { timeScale: { visible: false, borderColor: "#243041" } }));
     rsiSeries = rsiChart.addLineSeries({ color: "#f472b6", lineWidth: 2, priceLineVisible: false });
     rsiChart.priceScale("right").applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
-    chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r) try { rsiChart.timeScale().setVisibleLogicalRange(r); } catch (e) {} });
+    emaS = chart.addLineSeries({ color: "#22d3ee", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    macdChart = LightweightCharts.createChart(document.getElementById("macd"), Object.assign({}, opts, { timeScale: { visible: false, borderColor: "#243041" } }));
+    macdHist = macdChart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false });
+    macdLine = macdChart.addLineSeries({ color: "#60a5fa", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    macdSig = macdChart.addLineSeries({ color: "#f5c15c", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r) try { rsiChart.timeScale().setVisibleLogicalRange(r); macdChart.timeScale().setVisibleLogicalRange(r); } catch (e) {} });
     const ro = new ResizeObserver(() => { try { chart.applyOptions({ autoSize: true }); } catch (e) {} });
     ro.observe(document.getElementById("chart"));
     return true;
@@ -1958,6 +1978,21 @@
       bbL.setData(line(m20.map((v, i) => v == null || sd[i] == null ? null : v - 2 * sd[i])));
     } else { bbU.setData([]); bbL.setData([]); bbM.setData([]); }
     volSeries.setData(on("ind-vol") ? candles.map(c => ({ time: c.time, value: c.volume, color: c.close >= c.open ? "#16c78466" : "#ea394366" })) : []);
+    emaS.setData(on("ind-ema") ? line(ema(closes, 21)) : []);
+    const showMacd = on("ind-macd"); /* v20 */
+    document.getElementById("macd-wrap").classList.toggle("hidden", !showMacd);
+    if (showMacd) {
+      const e12 = ema(closes, 12), e26 = ema(closes, 26);
+      const m = closes.map((_, i) => e12[i] == null || e26[i] == null ? null : e12[i] - e26[i]);
+      const first = m.findIndex(v => v != null);
+      const sig = first < 0 ? m.map(() => null) : m.map(() => null).concat([]);
+      if (first >= 0) { const e9 = ema(m.slice(first), 9); e9.forEach((v, j) => { sig[first + j] = v; }); }
+      macdLine.setData(line(m)); macdSig.setData(line(sig));
+      macdHist.setData(m.map((v, i) => v == null || sig[i] == null ? null : ({ time: times[i], value: v - sig[i], color: v - sig[i] >= 0 ? "#16c78499" : "#ea394399" })).filter(Boolean));
+      setTimeout(() => { try { const r = chart.timeScale().getVisibleLogicalRange(); if (r) macdChart.timeScale().setVisibleLogicalRange(r); else macdChart.timeScale().fitContent(); } catch (e) {} }, 30);
+    }
+    try { const st = {}; document.querySelectorAll(".inds input[id^=ind-]").forEach(x => { st[x.id] = x.checked ? 1 : 0; }); localStorage.setItem("aj-inds-v20", JSON.stringify(st)); } catch (e) {}
+    try { document.dispatchEvent(new CustomEvent("aj:inds")); } catch (e) {}
     const showRsi = on("ind-rsi");
     document.getElementById("rsi-wrap").classList.toggle("hidden", !showRsi);
     if (showRsi) {
@@ -2510,7 +2545,7 @@
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=19.3").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=20").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2532,18 +2567,19 @@
     futMaxLev: contractMaxLev, fillFutSelect: fillFutSelect, updateFutEst: updateFutEst, loadTickers: loadTickers,
     encodeStartParam: encodeStartParam, syncTelegramChrome: syncTelegramChrome,
     inflateRawBytes: inflateRawBytes, b64urlToBytes: b64urlToBytes,
-    fmtPx: fmtPx, pxSet: pxSet, liveCandle: liveCandle, chartView: function (r) { try { if (!chart) return null; if (r) chart.timeScale().setVisibleLogicalRange(r); return chart.timeScale().getVisibleLogicalRange(); } catch (e) { return null; } }, reloadCandles: function () { return loadCandles(); }, get lastCandle() { return candles[candles.length - 1] || null; }, pxShown: function (k) { return PXSHOWN[k]; }, pxMark: function (k, v) { if (k && v > 0) PXSHOWN[k] = Number(v); },
+    fmtPx: fmtPx, pxSet: pxSet, liveCandle: liveCandle, chartView: function (r) { try { if (!chart) return null; if (r) chart.timeScale().setVisibleLogicalRange(r); return chart.timeScale().getVisibleLogicalRange(); } catch (e) { return null; } }, reloadCandles: function () { return loadCandles(); }, get candles() { return candles; }, get chartApi() { return chart; }, saveFavs: function () { try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (e) {} try { if (tg && tg.CloudStorage && typeof tg.CloudStorage.setItem === "function") tg.CloudStorage.setItem(FAV_KEY, JSON.stringify(favs), function () {}); } catch (e) {} try { renderMarkets(); } catch (e) {} }, get lastCandle() { return candles[candles.length - 1] || null; }, pxShown: function (k) { return PXSHOWN[k]; }, pxMark: function (k, v) { if (k && v > 0) PXSHOWN[k] = Number(v); },
     currentTab: function () { return currentTabName; }
   };
   window.__AJ_READY = true;
 })();
 </script>
-<script src="lib-lwc-4.2.3.js?v=19.3" async onload="window.__ajLwc && window.__ajLwc()"></script>
-<script src="lib-qrcode-1.4.4.js?v=19.3" async></script>
-<script src="v15.js?v=19.3" defer></script>
-<script src="v16-team.js?v=19.3" defer></script>
-<script src="v17.js?v=19.3" defer></script>
-<script src="v18.js?v=19.3" defer></script>
-<script src="v19.js?v=19.3" defer></script>
+<script src="lib-lwc-4.2.3.js?v=20" async onload="window.__ajLwc && window.__ajLwc()"></script>
+<script src="lib-qrcode-1.4.4.js?v=20" async></script>
+<script src="v15.js?v=20" defer></script>
+<script src="v16-team.js?v=20" defer></script>
+<script src="v17.js?v=20" defer></script>
+<script src="v18.js?v=20" defer></script>
+<script src="v19.js?v=20" defer></script>
+<script src="v20.js?v=20" defer></script>
 </body>
 </html>

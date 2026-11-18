@@ -257,6 +257,17 @@
       snap: function () { return S.snap ? { t: S.snap.t, coins: (S.snap.s || []).length } : null; },
       total: function () { return role() === "owner" && S.snap && isFinite(Number(S.snap.T)) ? Number(S.snap.T) : null; },
       hidden: function () { return !!S.hide; },
+      alloc: function () { /* v20: owner-only allocation (USDT values) for the donut; never leaves the device */
+        if (role() !== "owner" || !S.snap) return null;
+        var TK = (window.Aj && window.Aj.tickers) || {}, out = [];
+        (S.snap.s || []).forEach(function (r) {
+          var v = Number(r[3]), t = TK[r[0] + "_USDT"];
+          if (t && t.last > 0 && r[0] !== "USDT") v = (Number(r[1]) + Number(r[2] || 0)) * t.last;
+          if (isFinite(v) && v > 0) out.push([r[0], v]);
+        });
+        var f = S.snap.f; if (f) { var fv = (Number(f.tot) || 0) + (Number(f.up) || 0); if (fv > 0) out.push(["عقود", fv]); }
+        return out;
+      },
       render: function () { if (role() === "owner") render(); }
     };
     try { document.dispatchEvent(new CustomEvent("aj:bal")); } catch (x) {}

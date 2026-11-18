@@ -16,7 +16,7 @@ ver() { sed -n 's/^const VERSION = "\([0-9.]*\)".*/\1/p' sw.js; }
 verify() {
   local v=${1:-$(ver)} ok=0
   for host in "$GL" "$GH"; do
-    for f in "" "sw.js" "ajdata.js?v=$v" "tg-web-app.js?v=$v" "lib-lwc-4.2.3.js?v=$v" "v19.js?v=$v"; do
+    for f in "" "sw.js" "ajdata.js?v=$v" "tg-web-app.js?v=$v" "lib-lwc-4.2.3.js?v=$v" "v19.js?v=$v" "v20.js?v=$v"; do
       case "$f" in *\?*) u="$host/$f&nc=$RANDOM";; *) u="$host/$f?nc=$RANDOM";; esac
       c=$(curl -s -o /dev/null -w '%{http_code}' "$u" 2>/dev/null || echo 000)
       [ "$c" = 200 ] || { echo "FAIL $c $host/$f"; ok=1; }
@@ -33,11 +33,11 @@ v=$(ver)
 bad=$(grep -oE '\.js\?v=[0-9.]+' index.html | sort -u | grep -v "js?v=$v$" || true)
 [ -z "$bad" ] || { echo "index.html has other versions: $bad"; exit 1; }
 # never publish secrets, keys, balances or addresses
-if git diff HEAD --name-only | grep -v -E '^(lib-|tg-web-app)' | xargs -r grep -n -I -E \
+git add -A   # stage first so new (untracked) files are scanned too
+if git diff --cached --name-only --diff-filter=d | grep -v -E '^(lib-|tg-web-app|tools/publish\.sh)' | xargs -r grep -n -I -E \
    '(api[_-]?secret|api[_-]?key\s*[:=]\s*["'"'"'][A-Za-z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|glpat-|bot[0-9]{8,}:[A-Za-z0-9_-]{30,}|0x[0-9a-fA-F]{40}|T[1-9A-HJ-NP-Za-km-z]{33})' ; then
-  echo "refusing: something that looks like a secret or an address is in the change"; exit 1
+  git reset -q; echo "refusing: something that looks like a secret or an address is in the change"; exit 1
 fi
-git add -A
 git commit -qm "$msg" || echo "(nothing new to commit)"
 git push -q
 sha=$(git rev-parse HEAD)
