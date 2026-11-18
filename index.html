@@ -14,11 +14,8 @@
   <link rel="preconnect" href="https://api.gateio.ws" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <title>محطة التداول · Ajcoin</title>
-  <!-- ajcoin-miniapp v19.1 -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-  <script src="inflate.js?v=19.1"></script>
+  <!-- ajcoin-miniapp v19.2 -->
+  <script src="inflate.js?v=19.2"></script>
   <style>
     :root {
       --bg: #0b0f14; --card: #141a22; --card-2: #1a222c; --text: #e8edf2;
@@ -219,6 +216,41 @@
   </style>
 </head>
 <body>
+<div id="boot-retry" role="alert" style="display:none;position:fixed;inset-inline:12px;top:calc(12px + env(safe-area-inset-top));z-index:99;padding:12px 14px;border-radius:14px;background:#1a222c;border:1px solid #f5c15c66;color:#e8edf2;font:14px/1.6 system-ui,sans-serif;box-shadow:0 10px 30px #0008">
+  <div id="boot-msg">⏳ التحميل يستغرق وقتًا أطول من المعتاد بسبب الشبكة. تُعرض آخر بيانات محفوظة.</div>
+  <button type="button" id="boot-btn" style="margin-top:8px;border:0;border-radius:10px;padding:8px 14px;background:#3b82f6;color:#fff;font:inherit;font-weight:700">🔄 إعادة المحاولة</button>
+</div>
+<script>
+/* v19.2 boot watchdog: never leave a blank/frozen screen. No network, no account data. */
+(function () {
+  var t0 = Date.now(), shown = false;
+  window.__AJ_BOOT = { t0: t0, err: null };
+  function ok() { return !!(window.__AJ_READY && window.Aj && window.AjV18); }
+  function show(msg) {
+    if (ok() && !msg) return;
+    var b = document.getElementById("boot-retry"); if (!b) return;
+    if (msg) document.getElementById("boot-msg").textContent = msg;
+    b.style.display = "block"; shown = true;
+  }
+  window.addEventListener("error", function (e) {
+    if (window.__AJ_READY) return;
+    window.__AJ_BOOT.err = String((e && e.message) || "error").slice(0, 120);
+    setTimeout(function () { if (!window.Aj) show("⚠️ تعذر تشغيل التطبيق بالكامل. اضغط إعادة المحاولة."); }, 300);
+  });
+  setTimeout(function () { if (!ok()) show(); }, 4000);
+  setTimeout(function () { if (!window.Aj) show("⚠️ ما زال التحميل متوقفًا — غالبًا الشبكة بطيئة. اضغط إعادة المحاولة."); }, 9000);
+  var iv = setInterval(function () {
+    if (ok()) { clearInterval(iv); var b = document.getElementById("boot-retry"); if (b) b.style.display = "none"; }
+  }, 250);
+  document.addEventListener("click", function (e) {
+    if (!e.target || e.target.id !== "boot-btn") return;
+    try {
+      var u = new URL(location.href); u.searchParams.set("r", String(Date.now() % 100000));
+      location.replace(u.toString());
+    } catch (x) { location.reload(); }
+  });
+})();
+</script>
   <div id="ptr" class="ptr hidden">جارٍ التحديث…</div>
   <header>
     <div class="title">
@@ -552,6 +584,7 @@
     <button data-tab="alerts"><span>🔔</span>تنبيه</button>
   </nav>
 
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
 (function () {
 
@@ -1936,6 +1969,7 @@
   document.querySelector(".inds").addEventListener("change", applyIndicators);
 
   let chartKey = "";
+  window.__ajLwc = function () { try { if (!chart) loadCandles(); } catch (e) {} };
   function liveCandle(px) {
     px = Number(px);
     if (!candleSeries || !candles.length || !(px > 0)) return;
@@ -2477,7 +2511,7 @@
   setInterval(loadCandles, 20000);
   try {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js?v=19.1").then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=19.2").then(function (reg) {
         try { reg.update(); } catch (e) {}
         if (reg.waiting) { try { reg.waiting.postMessage("skipWaiting"); } catch (e) {} }
       }).catch(function () {});
@@ -2505,10 +2539,12 @@
   window.__AJ_READY = true;
 })();
 </script>
-<script src="v15.js?v=19.1" defer></script>
-<script src="v16-team.js?v=19.1" defer></script>
-<script src="v17.js?v=19.1" defer></script>
-<script src="v18.js?v=19.1" defer></script>
-<script src="v19.js?v=19.1" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js" async onload="window.__ajLwc && window.__ajLwc()"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" async></script>
+<script src="v15.js?v=19.2" defer></script>
+<script src="v16-team.js?v=19.2" defer></script>
+<script src="v17.js?v=19.2" defer></script>
+<script src="v18.js?v=19.2" defer></script>
+<script src="v19.js?v=19.2" defer></script>
 </body>
 </html>
